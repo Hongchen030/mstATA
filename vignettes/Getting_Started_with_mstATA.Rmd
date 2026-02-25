@@ -1,0 +1,267 @@
+---
+title: 'Getting Started with mstATA: A Complete Workflow'
+author: "Hong"
+date: "`r Sys.Date()`"
+output: 
+  rmarkdown::html_vignette:
+    toc: true
+    toc_depth: 3
+vignette: >
+  %\VignetteIndexEntry{Getting Started with mstATA: A Complete Workflow}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  fig.width = 6,
+  fig.height = 4
+)
+```
+
+
+## Introduction
+
+The `mstATA` package provides a comprehensive framework for automatic multistage test (MST) assembly using mixed-integer linear programming (MILP).
+
+Specifically, `mstATA` supports 
+
+- flexible specification of constraints across multiple hierarchical levels, including module-, pathway-, panel-, and solution-level; 
+
+- partial selection of items associated with the same stimulus, allowing item-stimulus dependencies to be modeled without forcing all-in/all-out inclusion; 
+
+- flexible formulation of single or multiple objectives, including absolute and relative objectives; 
+
+- simultaneous assembly of multiple parallel MST panels with global control over exposure and content balancing;
+
+- diagnostic feedback and reformulation tools for situations in which the optimization problem becomes infeasible or reaches time limit. 
+
+In addition to MST panel assembly, `mstATA` incorporates analytic methods for evaluating MST performance, such as measurement precision and classification accuracy. Collectively, these capabilities allow `mstATA` to unify a broad class of MST assembly and evaluation problems within a single modeling framework.
+
+## Workflow Overview
+
+```{r workflow-table, echo=FALSE}
+library(knitr)
+
+workflow_table <- data.frame(
+  Step = c("Prepare item pool",
+           "Specify MST structure",
+           "Identify hierarchical requirements",
+           "Translate specifications to linear model",
+           "Execute assembly via solver",
+           "Diagnose infeasible models",
+           "Evaluate assembled panels"),
+  Description = c(
+    "Check attributes in the item pool.",
+    "Create mstATA_design object.",
+    "Understand test specifications.",
+    "Create mstATA_constraint and mstATA_objective objects.",
+    "Create mstATA_model and mstATA_panel objects.",
+    "Check the feasibility of individual and combined specifications.",
+    "Produce tables, plots, and analytical results."
+  )
+)
+
+kable(workflow_table, align = "l")
+
+```
+
+### Step 1: Prepare the Item Pool
+
+Before assembly, the item pool must contain all required attributes (categorical, quantitative, logical) at item-, stimulus-, itemset- levels.
+
+#### IRT Computation
+
+- `compute_icc()`: item category probabilities
+- `compute_iif()` : item information function
+- `Pi_internal()`: helper function for `compute_icc()` and `compute_iif()`
+- `plot_tif()`: item pool information preview
+
+
+#### Attribute Check
+
+- `get_attribute_val()`: extract categorical/quantitative attribute values
+- `create_enemy_sets()`: create enemy item sets/enemy stimulus sets
+- `concat_enemy_sets()`: combine enemy item sets/enemy stimulus sets from different sources (e.g., similarity, clueing, or other test security concern)
+- `create_pivot_stimulus_map()`: create item-stimulus mapping
+
+### Step 2: Specify the MST Structure
+
+An MST design is defined using `mst_design()`. The `mstATA_design` object defines:
+
+- MST design: number of stages, number of modules per stage  
+- Module/pathway lengths  
+- Routing structure: excluded pathways, routing decision points  
+- Decision variables for item-module selection in a panel
+
+This step creates `mstATA_design` object, which is the required input for the subsequent process.
+
+### Step 3: Identify Hierarchical Requirements
+
+In addition to the type of specification—**categorical, quantitative, or logical**—each specification has two 
+distinct dimensions: a **defined level**, which indicates the unit
+to which the requirement conceptually applies (item, stimulus, item set, module, pathway, panel,
+or solution), and an **enforced level**, which specifies the scope over which the requirement is operationally 
+imposed (module, pathway, panel, or solution). 
+
+For requirements defined at the item,
+stimulus, or item-set levels, the enforcement level must be specified at a higher aggregation level
+(module, pathway, panel, or solution). The reason is that items, stimuli, and item sets are selection
+units, but they do not constitute independent test forms by themselves; they are selected in specific
+modules/pathways/a panel. 
+
+- Whether an item (or stimulus) "must be selected" is therefore meaningful only after specifying where it must
+be selected—e.g., in a particular module, somewhere within a pathway, anywhere in the panel, or
+across panels. 
+- Item-set exclusion requirements must be enforced at the pathway-level to ensure that 
+no examinee can see enemy item pairs in a pathway. 
+- Item-set conditional inclusion requirements must be 
+enforced at the module-level to ensure that items linked to a selected stimulus are administered in the
+same module. 
+- Item reusage requirements must be enforced at the panel-level (either strict item uniqueness within
+the entire panel or item reuse allowed within stage, but not within pathway) or the solution-level (the minimum 
+or/and maximum number of times an item is selected across multiple panels.)
+
+In other words, low-level requirements require an explicit enforcement scope to determine 
+which subset of decision variables is constrained. In contrast, for requirements defined at
+the module, pathway, panel, or solution levels, the enforcement level is typically the same as the defined level.
+
+### Step 4: Translate specifications into an optimization model  
+
+This step converts specifications into a MILP model.
+
+#### Objectives
+
+Objective terms are created using `objective_term()` and compiled into a `compiled_objective` object.
+
+Available objective strategies:
+
+- `single_obj`: minimize or maximize a single objective.
+- `weighted_obj()`: minimize or maximize the weighted sum of multiple objectives.
+- `maximin_obj()`: maximize a common minimum value across multiple objectives,, optionally applying a fixed penalty to any amount that exceeds this bound.
+- `capped_maximin_obj()`: maximize a common minimum value across multiple
+objectives, penalized by the tolerance for any overflow.
+- `minimax_obj()`: minimize a common maximum deviation from multiple goals.
+- `goal_programming_obj()`: minimize the (weighted or unweighted) sum of deviations from multiple
+goals.
+
+#### Constraints
+
+Constraints are created as `mstATA_constraint` objects.
+
+Structural constraints
+
+- `mst_structure_con()`: a higher-level wrapper that jointly constructs
+module/pathway length constraints `test_itemcount_con()` and routing decision
+point constraints `test_rdp_con()`.
+
+- `dvlink_item_solution()`: an internal function (not intended for direct user calls) 
+invoked by `multipanel_spec()` to define solution-level item indicator variables and 
+generate constraints for item exposure control across multiple panels.
+
+Item-level constraints:
+
+- `itemcat_con()`: constrain an item must or must not be selected.
+- `itemquant_con()`: constrain quantitative attribute for an item to be selected.
+
+Stimulus-level constraints:
+
+- `stimcat_con()`: constrain a stimulus must or must not be selected.
+- `stimquant_con()`: constrain quantitative attribute for a stimulus to be selected.
+
+Itemset-level constraints:
+
+- `enemyitem_exclu_con()`: exclude the enemy item pair appearing in the same pathway.
+- `enemystim_exclu_con()`: exclude the enemy stimulus pair appearing in the same pathway.
+- `stim_itemcount_con()`: constrain the min/exact/max number of items selected conditional on the
+selection of a stimulus.
+- `stim_itemcat_con()`: constrain the min/exact/max number of items selected from category c
+conditional on the selection of a stimulus.
+- `stim_itemquant_con()`: constrain the min/exact/max values for the sum of item quantitative attribute values within a selected stimulus.
+
+Module-/Pathway-level constraints:
+
+- `test_itemcat_con()`, `test_itemcat_range_con()`: constrain the min/equal/max/range number of items from specific categories
+in a module or pathway.
+- `test_itemquant_con()`, `test_itemquant_range_con()`: constrain the min/equal/max/range for the sum of the item quantitative attribute in a
+module or pathway.
+- `test_stimcount_con()`: constrain the min/equal/max number of stimuli in a module or a
+pathway.
+- `test_stimcat_con()`: constrain the min/equal/max number of stimuli from specific
+categories in a module or pathway.
+- `test_stimquant_con()`: constrain the min/equal/max for the sum of the stimulus quantitative attribute in a module or pathway.
+
+Panel-level constraints:
+
+- `panel_itemreuse_con()`: constrain item exposure within a panel.
+- `panel_itemcat_con()`: constrain the min/equal/max number of items from specific categories within a panel.
+- `panel_stimcat_con()`: constrain the min/equal/max number of stimuli from specific
+categories within a panel.
+
+Solution-level constraints:
+
+- `solution_itemcount_con()`: constraint the min/equal/max number of unique items across multiple panels.
+- `solution_itemcat_con()`: constrain the min/equal/max number of unique items from specific categories across multiple panels.
+- `solution_stimcount_con()`: constraint the min/equal/max number of unique stimuli across multiple panels.
+- `solution_stimcat_con()`: constrain the min/equal/max number of unique stimuli from specific categories across multiple panels.
+
+### Step 5: Execute Assembly via a Solver
+
+After objectives and constraints are compiled, create `mstATA_model` via `onepanel_spec()` or `multipanel_spec()`.
+
+- `solve_model()`: supported solvers include `gurobi`, `HiGHS`, `Symphony`, `GLPK` and `lpsolve`.
+- `assembled_panel()`: organizes the solver results by panel, module, and pathway.
+
+### Step 6: Diagnosing Infeasibility
+
+- `check_singblock_feasibility()`: tests the feasibility of an individual specification by solving a reduced model that contains the core constraints plus exactly one additional constraint block.
+- `check_comblock_feasibility()`: tests the feasibility of multiple specifications by solving a reduced model that contains the core constraints plus user-specified combination of constraint blocks.
+
+Recover feasibility for an infeasible `mstATA_model`
+
+- `solve_with_slack()`: attempt to recover feasibility for an infeasible `mstATA_model`.
+
+### Step 7: Evaluate assembled panels
+
+After assembly, panels can be evaluated from multiple perspectives.
+
+Content and structural reports:
+
+- `report_test_itemcat()`: summarizes the number of selected items belonging to specified categorical attribute levels in specific 
+modules/pathways.
+- `report_test_itemquant()`: summarizes quantitative item attributes (e.g., test information, time, difficulty) in specific modules/pathways.
+- `report_test_tcc()`: computes and reports category probability curves aggregated at the module or pathway level for assembled MST panels.
+- `report_test_tif()`: cmputes and reports test information functions aggregated at the module or pathway level for assembled MST panels.
+
+Psychometric evaluation:
+
+- `plot_panel_tcc()`: plots category probability curves aggregated at the module or pathway level, supports both single-panel and multi-panel visualization.
+- `plot_panel_tif()`: plots test information functions aggregated at the module or pathway level, supports both single-panel and multi-panel visualization.
+
+Precision and classification: 
+
+- `analytic_mst_precision()`, `analytic_mst_precision_item()`: computes conditional bias and conditional standard error of measurement for MST panels using a recursion-based evaluation method (Lim, 2000). 
+- `analytic_mst_classification()`: computes classification evaluation criterion using Rudner's method (2000, 2005).
+
+Supporting utilities:
+
+- `expected_score()`: computes the expected total score implied by item category probability curves. 
+- `inv_tcc_from_icc()`: computes ITCC estimates from test characteristic curve. 
+- `module_score_dist()`: computes the conditional distribution of total module scores given a/multiple ability values.
+- `joint_module_score_dist()`: computes the joint (cumulative) score distribution after administering a next-stage module, conditional on routing into a branch defined by a set of reachable previous scores.
+- `normalize_cut_scores()`: converts routing cut scores (theta scale) to the number-correct scale.
+
+## Summary
+
+`mstATA` provides a unified framework for hierarchical constraint modeling, multi-strategy objective optimization, multi-panel MST assembly, and psychometric evaluation.
+
+- Each specification corresponds to a clearly named function
+
+- Each function produces explicit linear constraints
+
+- All constraints can be inspected prior to solving
+
+- Infeasibility diagnostics are available
+

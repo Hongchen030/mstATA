@@ -1,0 +1,1037 @@
+---
+title: "Formulation for Multiple Objectives"
+author: "Hong Chen"
+date: "`r Sys.Date()`"
+output:
+  rmarkdown::html_vignette:
+    toc: true
+    toc_depth: 3
+vignette: >
+  %\VignetteIndexEntry{Formulation for Multiple Objectives}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  fig.width = 7,
+  fig.height = 4.5
+)
+library(knitr)
+library(kableExtra)
+library(ggplot2)
+library(ggpubr)
+library(mstATA)
+```
+
+## Introduction
+
+Automatic test assembly often involves competing goals. In MST assembly, a single panel is typically expected to satisfy multiple psychometric and content-related requirements, such as:
+
+- meeting information targets across routing pathways,
+
+- balancing item or stimulus categories,
+
+- controlling quantitative attributes (e.g., response time),
+
+- limiting item reuse across panels.
+
+These requirements can be expressed as constraints, but in practice some requirements are best treated as objectives. Like constraints, the objective terms may correspond to either categorical or quantitative requirements and may be enforced at different levels. 
+
+In `mstATA`:
+
+- Objectives are constructed via `objective_term()` and combined using multi-objective strategies (weighted sum, goal programming, maximin, capped maximin, minimax).
+- Constraints are created via `*_con()` functions.
+- Models are specified using `onepanel_spec()` or `multipanel_spec()`.
+- Optimization is executed via `solve_model()`.
+
+## Overview
+
+### Constraint vs objective
+
+Within the MILP framework, specifications—except for logical requirements (enemy exclusion, item-stim conditional inclusion, item exposure and overlap control)—can generally be represented in one of two ways: as constraints or as objective functions. A constraint defines feasibility (must be satisfied). An objective defines preference among feasible solutions. Constraints impose upper or/and lower bounds on attribute values, thereby exercising absolute control over test composition. Objective functions, in contrast, guide the optimization process toward maximizing or minimizing certain characteristics. Their realized values, however, depend on the properties of the item pool and the interaction with other constraints.
+
+### Objective term
+
+For each objective term $k = 1, \ldots, K$, define $y_k = a_k^\top x$, where $a_k$ is a coefficient vector determined by the attribute and application scope of the objective term and $x$ is the vector of binary item–module decision variables.
+
+Key characteristics for each objective term:
+
+(1) Attribute (item/stimulus categorical, quantitative)
+
+- maximize or minimize the number of items/stimuli belonging to a specific categorical level.
+
+- maximize or minimize the sum of quantitative item-level/stimulus-level attribute values, such as difficulty, discrimination, item information function values or stimulus word counts.
+
+(2) Specification scope
+
+- "Module-level": only items/stimuli in a specified module contribute to the objective;
+
+- "Pathway-level": items/stimuli in all modules belonging to one pathway contribute;
+
+- "Panel-level": all item/stimulus selections in the panel contribute.
+
+### Relative or absolute objective
+
+A further distinction can be made between absolute and relative objectives. An absolute objective minimizes the discrepancy between the realized value in the assembled test and a pre-specified target characteristic, such as a desired TIF. A relative objective, by contrast, seeks to optimize a characteristic without reference to a fixed target. 
+
+- For **relative objectives**: the objective value is $y_k = a_k^\top x$. These objectives can be set either to maximize or to minimize.
+
+- For **absolute (goal-based) objectives**: the objective value is $|a_k^\top x - g_k|$ where $g_k$ is the target value specified by the test developer. These objectives can only be set to minimize. 
+
+Empirical comparisons suggest that solutions derived from the relative objective are highly dependent on the properties of the item bank—different banks yield different optimal solutions. In contrast, solutions from the absolute objective, which
+aim to reproduce a target TIF rather than maximize information, tend to be more stable across item pools. Consequently, the absolute objective is often preferred when consistency across multiple MST panels is a priority.
+
+Luo (2020) cautioned, however, that inappropriate or unrealistic target TIF values may have
+adverse effects on assembly outcomes. To mitigate this issue, he proposed deriving target TIF
+values from an ATA model employing a relative TIF objective. Unlike conventional methods that
+define TIF targets, this approach allows the targets to emerge from the optimization process itself,
+reflecting both the quality of the item bank and the imposed test constraints.
+
+## Multiple-Objective Formulations
+
+`mstATA` supports several strategies to compile objectives. This section describes when each formulation is useful and how it is constructed.
+
+### Weighted sum
+
+**Idea**: minimize or maximize a linear combination of multiple objective values.
+
+This is the simplest and most flexible multi-objective approach. It is appropriate when the objective terms are commensurate or when weights can be justified based on operational priorities. It is also the only strategy that supports combining compiled objectives produced by other multi-objective formulations (e.g., maximin, capped maximin, minimax, or goal programming).
+
+**`multiple_term`** argument: must be a list of objective terms created by `objective_term()` or a list of complied objectives created by other multi-objective formulation strategies. The list must contain two or more elements. Each element may represent either a relative or an absolute objective. The weighted aggregation respects the optimization sense (maximize or minimize) specified within each objective term or compiled objective.
+
+**When to use**:
+
+- weights can be meaningfully specified (e.g., reflecting operational priorities); 
+- objective terms are comparable in scale, or can be rescaled appropriately; 
+- you wish to combine multiple compiled objectives into one final objective.
+
+**How to use**: 
+
+- Define individual objective terms using `objective_term()`. The objective terms can be specified **entirely as relative objectives, entirely as absolute objectives, or as a combination of the two**.
+- Combine them directly using `weighted_sum_obj()`.
+- Alternatively, first construct compiled objectives using `maximin_obj()`/`capped_maximin_obj()`/`minimax_obj()`/`goal_programming_obj()`, then combine multiple compiled objectives using `weighted_sum_obj()`.
+
+### Goal programming
+
+**Idea**: minimize the weighted sum of deviations from multiple targets (absolute objectives)
+
+**When to use**: 
+
+- You have explicit targets: information must be close to a specific value, total test time must approximate a predefined operational target; content proportions must closely match blueprint percentages.
+- When several specifications are soft requirements: pathway-level information targets, average response time, item reuse rates, goal programming finds a compromise solution that minimizes overall deviation.
+- If strict constraints make the model infeasible, converting some requirements into goals allows controlled relaxation while still prioritizing them.
+
+**How to use**
+
+- Use `objective_term()` to define each term, then combine them with `goal_programming_obj()`. All objective terms must be **absolute objectives**.
+- Under- and over-achievement may have different importance: `goal_programming_obj()` allows asymmetric deviations via "mode = "two_dev". 
+- Weights may be assigned to individual objective terms to reflect the relative importance of each absolute objective.
+
+### Maximin
+
+**Idea**: Maximize the minimum performance across multiple objectives.
+
+**When to use**
+
+- You want to protect the lowest information point across a set of θ values.
+- You want balanced precision across ability regions.
+- You do not want the solution to concentrate information only where it is easy to achieve.
+- Typical MST use case: Maximize the minimum TIF across a grid of $\theta$ values. This ensures no ability region is severely under-served.
+
+**How to use**
+
+- Use `objective_term()` to define each term, then combine them with `maximin_obj()`. All objective terms must be **relative objectives**.
+- `proportions`: A positive numeric vector specifying the relative scaling of each objective term. Defaults to a vector of ones (equal importance).
+- `delta`: A nonnegative numeric value controlling the overflow band. Defaults to $\infty$ (no overflow control).
+
+### Capped maximin
+
+**Idea**: A modified maximin that limits the influence of extreme or easy objectives by introducing an upper bound (cap). Compared to the classical maximin formulation—where overflow control may be imposed through a user-specified `delta`—the capped maximin strategy treats $\delta$ as an explicit decision variable and optimizes it jointly with the common floor value $y$.
+
+**When to use**
+
+- You want robustness (like maximin).
+- You want more stable and balanced improvement across objectives.
+- But you do not want to specify the $\delta$ value.
+
+**How to use**
+
+- Use `objective_term()` to define each term, then combine them with `capped_maximin_obj()`. All objective terms must be **relative objectives**.
+- `proportions`: A positive numeric vector specifying the relative scaling of each objective term. Defaults to a vector of ones (equal importance).
+
+### Minimax
+
+**Idea**: minimize a common ceiling on deviations from multiple target values.
+
+**When to use**
+
+- You want to minimize the largest deviation from a target.
+
+**How to use**
+
+- Use `objective_term()` to define each term, then combine them with `minimax_obj()`. All objective terms must be **absolute objectives**.
+- Under- and over-achievement may have different importance: `minimax_obj()` allows asymmetric deviations via "mode = 'two_dev'" (minimize the sum of the largest shortage and largest overflow). When "mode = 'one_dev'", it minimize the largest absolute deviation across all objectives.
+
+## Worked Example
+
+### Item pool data
+
+A simulated item pool is used for analysis and can be accessed via `data("mixe_format_pool")`. The pool contains 1000 items, with 250 items nested in 30 stimuli and 750 standalone items. There are 10 enemy item sets. Descriptive statistics for categorical and quantitative attributes are summarized below. 
+
+```{r,echo=FALSE}
+#---- table data ----
+tbl_attr <- data.frame(
+  Attributes = c("Content area", "Item type", "DOK level","Response time","Discrimination","Difficulty",
+                 rep("Information",9),
+                 "Stimulus type","Stimulus complexity score"),
+  Type = c(rep("Categorical",3),rep("Quantitative",3),
+           rep("Quantitative",9),
+           "Categorical", "Quantitative"),
+  Description = c(
+    "Four content areas. Num of items: (233, 265, 257, 245).",
+    "Two item types: MC and TEI. Num of items: (800, 200).",
+    "Three DOK levels. Num of items: (332, 332, 336).",
+    "Mean: 62.43, SD: 18.13, Min: 25.64, Max: 150.41.",
+    "Mean: 1.04, SD: 0.30, Min: 0.37, Max: 2.92.",
+    "Mean: 0.01, SD: 0.96, Min: -3.87, Max: 3.15.",
+
+    "$\\theta$ = -1.15, Mean: 0.18, SD: 0.12, Min: 0.00, Max: 0.92.",
+    "$\\theta$ = -1, Mean: 0.19, SD: 0.12, Min: 0.01, Max: 0.83.",
+    "$\\theta$ = -0.67, Mean: 0.21, SD: 0.14, Min: 0.01, Max: 1.31.",
+    "$\\theta$ = -0.32, Mean: 0.23, SD: 0.15, Min: 0.02, Max: 2.04.",
+    "$\\theta$ = 0, Mean: 0.24, SD: 0.15, Min: 0.02, Max: 2.00.",
+    "$\\theta$ = 0.32, Mean: 0.23, SD: 0.14, Min: 0.02, Max: 1.32.",
+    "$\\theta$ = 0.67, Mean: 0.21, SD: 0.14, Min: 0.01, Max: 0.97.",
+    "$\\theta$ = 1, Mean: 0.19, SD: 0.13, Min: 0.01, Max: 0.91.",
+    "$\\theta$ = 1.15, Mean: 0.18, SD: 0.12, Min: 0.01, Max: 0.88.",
+    
+    "Two stimulus types: text-based, graphic-based. Num of stimuli: (10, 20).",
+    "Mean: 5.90, SD: 1.76, Min: 3.00, Max: 8.80."
+  )
+)
+colnames(tbl_attr)<-c("Attribute","Type","Description")
+# ---- render table ----
+kable(
+  tbl_attr,
+  booktabs = TRUE,
+  longtable = FALSE,
+  escape = FALSE,
+  caption = "Descriptive statistics for categorical and quantitative attributes") |>
+  kable_styling(
+    latex_options = c("hold_position"),
+    full_width = FALSE,
+    position = "center",
+    font_size = 10
+  ) |>
+  column_spec(1, width = "3cm") |>
+  column_spec(2, width = "2cm") |>
+  column_spec(3, width = "10cm") |>
+  pack_rows(group_label = "Item attributes",1,15)|>
+  pack_rows(group_label = "Stimulus attributes",16,17)
+```
+
+### Specifications
+
+An MST panel with a 1–2–2 design is assembled using different multi-objective formulations. The four pathways correspond to two equally sized subpopulations on the ability scale: $[-3.0,0]$ mapped to pathways S1R–S2E–S3E and S1R–S2H–S3E, representing lower-ability examinees and $[0,3.0]$ mapped to pathways S1R–S2E–S3H and S1R–S2H–S3E, representing higher-ability examinees. Within each interval, three representative ability points ($\theta$-values) are selected by dividing the area under the normal distribution into four equal segments to ensure even coverage of each subpopulation. The resulting target ability points are $\theta=(−1.15, −0.67, −0.32)$ for the lower-ability group, and $\theta = (0.32, 0.67, 1.15)$ for the higher-ability group. Minimum TIF values are specified at these points to guarantee sufficient measurement precision. The assessment aims to optimize the minimum TIF at ability levels $\theta = (-1, 0, 1)$ for the routing module. For absolute objectives, the TIF goals are set to 5 at $\theta = (-1, 0, 1)$ for the routing module 
+
+$$
+\begin{aligned}
+y_1 &= \sum_i I_i(\theta = -1)\, x_{i,m=1} \\
+y_2 &= \sum_i I_i(\theta = 0)\, x_{i,m=1} \\
+y_3 &= \sum_i I_i(\theta = 1)\, x_{i,m=1} \\
+\end{aligned}
+$$
+
+```{r,echo=FALSE}
+testing3 <- data.frame(
+  Specification = c(
+    "MST structure",
+    
+    "Item exposure control",
+    
+    "TEI",
+    "Response time",
+    "TIF threshold","",
+    
+    "Stimulus num and type","","",
+    "Content","DOK","Mean difficulty",
+    
+    "Item count in a selected stimulus","",
+    "TEI item count in a selected stimulus",
+    "No enemy items",
+
+    "Stimulus complexity score",
+    
+    "maximin",
+    "capped maximin",
+    "weighted sum",
+    "unary minimax",
+    "binary minimax",
+    "goal programming"
+  ),
+  Description = c(
+    "MST 1-2-2, each module contains 12 items. RDP: 0",
+    
+    "Unique items are used across modules in the panel.",
+    
+    "Each pathway has at most 2 TEI items.",
+    "The total response time per pathway should be between 20 and 40 minutes.",
+    "Minimum TIF values for the easier pathways (S1R-S2E-S3E and S1R-S2H-S3E): TIF values must be at least 10 at $\\theta$ = -1.15, -0.67 and -0.32",
+    "Minimum TIF values for the harder pathways (S1R-S2E-S3H and S1R-S2H-S3H): TIF values must be at least 10 at $\\theta$ = 0.32, 0.67 and 1.15",
+    
+    "S1R module does not include any stimuli",
+    "S2E and S2H each contain 1 text-based stimulus.",
+    "S3E and S3H each contain 1 graphic-based stimulus.",
+    "Min and Max number of items (4 content areas) per module: (2,4)",
+    "Min and Max number of items for DOK 1–3 per module: (3,5)",
+    "S2E: (-0.55,-0.45), S2H: (0.45,0.55), S3E: (-1.05,-0.95), S3H: (0.95,1.05)",
+    
+    "S1R module does not have items associated with any stimulus.",
+    "At least 4 items conditional on the selection of a stimulus in S2E, S2H, S3E and S3H.",
+    "At most 1 TEI item conditional on a selected stimulus in S2E, S2H, S3E and S3H.",
+     "Items from the same enemy group cannot appear in the same pathway.",
+
+    "The complexity score from selected stimulus should be between 4.5 and 8.5.",
+
+    "$\\max y \\quad \\text{s.t. } y \\le y_k \\le y + 0.5$",
+    "$\\max y - \\delta \\quad \\text{s.t. } y \\le y_k \\le y + \\delta$",
+    "$\\max y_1 +y_2 + y_3$",
+    "$\\min\\; d \\quad \\text{s.t. }\\; \\lvert y_k - g_k \\rvert \\le d$",
+    "$\\min\\; d^{+} + d^{-} \\quad \\text{s.t. }\\; g_k - y_k \\le d^{-} \\text{and } y_k - g_k \\le d^{+}$",
+    "$\\min\\; d_1 + d_2 + d_3 \\quad \\text{s.t. }\\; \\lvert y_k - g_k \\rvert \\le d_k$"
+  ),
+  `Num of Constraints` = c(9,1000,4,8,6,6,
+                           2,2,2,40,30,8,
+                           30,240,120,40,
+                           240,
+                           6,6,3,6,6,6)
+)
+colnames(testing3)<-c("Specification","Description","Num of Constraints")
+
+kable(
+  testing3,
+  booktabs = TRUE,
+  escape = FALSE,
+  caption = "Specifications for MST 1-2-2 with discrete and stimulus-based items"
+) |>
+  kable_styling(
+    latex_options = c("hold_position"),
+    full_width = FALSE,
+    font_size = 10,
+    position = "center"
+  ) |>
+  column_spec(1, width = "4cm") |>
+  column_spec(2, width = "8cm") |>
+  column_spec(3, width = "2cm") |>
+  pack_rows(group_label = "Structure requirements",1,1)|>
+  pack_rows(group_label = "Panel-level requirements",2,2)|>
+  pack_rows(group_label = "Pathway-level requirements",3,6)|>
+  pack_rows(group_label = "Module-level requirements",7,12)|>
+  pack_rows(group_label = "Itemset-level requirements",13,16)|>
+  pack_rows(group_label = "Stimulus-level requirements",17,17)|>
+  pack_rows(group_label = "Relative Objective: Maximize the TIFs at -1, 0 and 1",18,20)|>
+  pack_rows(group_label = "Absolute Objective: Minimize the deviation from target TIFs at -1, 0 and 1",21,23)
+```
+
+### Code
+
+To ensure fast vignette rendering and CRAN compatibility, full solver runs are not executed here. Precomputed results can be loaded and examined.
+
+#### Constraints
+
+```{r}
+data("mixed_format_pool")
+# step 1: prepare item pool
+low_abilities<-c(-1.15,-0.67,-0.32)
+high_abilities<-c(0.32,0.67,1.15)
+target_abilities<-c(-1,0,1)
+theta_points<-c(low_abilities,high_abilities,target_abilities)
+theta_information<-compute_iif(mixed_format_pool,
+                               item_par_cols = list("2PL"=c("discrimination","difficulty")),
+                               theta = theta_points,
+                               model_col = "model",D = 1)
+mixed_format_pool[,paste0("iif(theta=",theta_points,")")]<-theta_information
+enemyitem_set<-create_enemy_sets(mixed_format_pool$item_id,
+                                 mixed_format_pool$enemyitem,
+                                 sep_pattern = ",")
+pivot_stim_map<-create_pivot_stimulus_map(mixed_format_pool,
+                                          item_id_col = "item_id",
+                                          stimulus = "stim",
+                                          pivot_item = "pivot")
+# step 2: specify mst structure
+mst122<-mst_design(itempool = mixed_format_pool,item_id_col = "item_id",
+                   design = "1-2-2",rdp = list(c(0),c(0)),
+                   module_length = rep(12,5),
+                   enemyitem_set = enemyitem_set,
+                   pivot_stim_map = pivot_stim_map)
+# step 3: identify hierarchical requirements
+
+# step 4: translate to linear model
+mst_structure<-mst_structure_con(x = mst122,info_tol = 0.1)
+mst_noreuse<-panel_itemreuse_con(x = mst122,overlap = FALSE)
+mst_tei<-test_itemcat_con(x = mst122,attribute = "itemtype",cat_levels = "TEI",
+                          operator = "<=",target_num = 2,which_pathway = 1:4)
+mst_time<-test_itemquant_range_con(x = mst122,attribute = "time",
+                                   min = 20*60,max = 40*60,
+                                   which_pathway = 1:4)
+mst_tif_low1<-test_itemquant_con(x = mst122,
+                                 attribute = "iif(theta=-1.15)",
+                                 operator = ">=",
+                                 target_value = 10,
+                                 which_pathway = 1:2)
+mst_tif_low2<-test_itemquant_con(x = mst122,
+                                 attribute = "iif(theta=-0.67)",
+                                 operator = ">=",
+                                 target_value = 10,
+                                 which_pathway = 1:2)
+mst_tif_low3<-test_itemquant_con(x = mst122,
+                                 attribute = "iif(theta=-0.32)",
+                                 operator = ">=",
+                                 target_value = 10,
+                                 which_pathway = 1:2)
+mst_tif_high1<-test_itemquant_con(x = mst122,
+                                  attribute = "iif(theta=0.32)",
+                                  operator = ">=",
+                                  target_value = 10,
+                                  which_pathway = 3:4)
+mst_tif_high2<-test_itemquant_con(x = mst122,
+                                  attribute = "iif(theta=0.67)",
+                                  operator = ">=",
+                                  target_value = 10,
+                                  which_pathway = 3:4)
+mst_tif_high3<-test_itemquant_con(x = mst122,
+                                  attribute = "iif(theta=1.15)",
+                                  operator = ">=",
+                                  target_value = 10,
+                                  which_pathway = 3:4)
+mst_stimtype_s1<-test_stimcat_con(x = mst122,
+                                  attribute = "stimtype",
+                                  cat_levels = c("text-based","graphic-based"),
+                                  operator = "=",
+                                  target_num = 0,which_module = 1)
+mst_stimtype_s2<-test_stimcat_con(x = mst122,
+                                  attribute = "stimtype",
+                                  cat_levels = "text-based",
+                                  operator = "=",
+                                  target_num = 1,which_module = 2:3)
+mst_stimtype_s3<-test_stimcat_con(x = mst122,attribute = "stimtype",
+                                  cat_levels = "graphic-based",
+                                  operator = "=",
+                                  target_num = 1,which_module = 4:5)
+mst_content<-test_itemcat_range_con(x = mst122,
+                                    attribute = "content",
+                                    cat_levels = paste0("content ",1:4),
+                                    target = 3,deviation = 1,
+                                    which_module = 1:5)
+mst_dok<-test_itemcat_range_con(x = mst122,
+                                attribute = "dok",
+                                cat_levels = paste0("dok ",1:3),
+                                min = 3,max = 5,
+                                which_module = 1:5)
+mst_meandiff<-test_itemquant_range_con(x = mst122,
+                                       attribute = "difficulty",
+                                       target = c(-0.5,0.5,-1,1)*12,
+                                       deviation = 0.05*12,
+                                       which_module = 2:5)
+mst_stimitem_s1<-stim_itemcount_con(x = mst122,
+                                    min = 0,max = 0,
+                                    which_module = 1)
+mst_stimitem_s2_s3<-stim_itemcount_con(x = mst122,
+                                       min = 4,max = NULL,
+                                       which_module = 2:5)
+mst_stimitemtype<-stim_itemcat_con(x = mst122,
+                                   attribute = "itemtype",cat_levels = "TEI",
+                                   min = NULL,max = 1,
+                                   which_module = 2:5)
+mst_noenemy<-enemyitem_exclu_con(x = mst122)
+mst_stimcomplexity<-stimquant_con(x = mst122,
+                                  attribute = "stimcomplexity",
+                                  min = 4.5,max = 8.5,
+                                  which_module = 2:5)
+constraint_list<-list(mst_structure,
+                      mst_noreuse,
+                      mst_tei,mst_time,
+                      mst_tif_low1,mst_tif_low2,mst_tif_low3,
+                      mst_tif_high1,mst_tif_high2,mst_tif_high3,
+                      mst_stimtype_s1,mst_stimtype_s2,mst_stimtype_s3,
+                      mst_content,mst_dok,mst_meandiff,
+                      mst_stimitem_s1,mst_stimitem_s2_s3,
+                      mst_stimitemtype,
+                      mst_noenemy,
+                      mst_stimcomplexity)
+```
+
+#### Objectives
+
+```{r}
+rel_obj1<-objective_term(x = mst122,attribute = "iif(theta=-1)",
+                         applied_level = "Module-level",
+                         which_module = 1,sense = "max")
+rel_obj2<-objective_term(x = mst122,attribute = "iif(theta=0)",
+                         applied_level = "Module-level",
+                         which_module = 1,sense = "max")
+rel_obj3<-objective_term(x = mst122,attribute = "iif(theta=1)",
+                         applied_level = "Module-level",
+                         which_module = 1,sense = "max")
+
+### maximin
+maximin<-maximin_obj(x = mst122,
+                     multiple_terms = list(rel_obj1,rel_obj2,rel_obj3),
+                     strategy_args = list(delta = 0.5))
+maximin_model<-onepanel_spec(x = mst122,
+                             constraints = constraint_list,
+                             objective = maximin)
+# \dontrun{
+# ### Step 5: Execute assembly via solver
+# maximin_result<-solve_model(model_spec = maximin_model,
+#                             solver = "HiGHS",check_feasibility = FALSE,
+#                             time_limit = 60*5)
+# maximin_panel<-assembled_panel(x = mst122,result = maximin_result)
+# ### Step 6: Diagnose infeasible model
+# # There is an optimal solution. Skip this step.
+# }
+
+### capped maximin
+capped_maximin<-capped_maximin_obj(x = mst122,
+                                   multiple_terms = list(rel_obj1,rel_obj2,rel_obj3))
+capped_maximin_model<-onepanel_spec(x = mst122,
+                                    constraints = constraint_list,
+                                    objective = capped_maximin)
+# \dontrun{
+# ### Step 5: Execute assembly via solver
+# capped_maximin_result<-solve_model(model_spec = capped_maximin_model,
+#                                    solver = "HiGHS",check_feasibility = FALSE,
+#                                    time_limit = 60*5)
+# capped_maximin_panel<-assembled_panel(x = mst122,result = capped_maximin_result)
+# ### Step 6: Diagnose infeasible model
+# # There is an optimal solution. Skip this step.
+# }
+
+###weighted sum
+weighted_sum<-weighted_sum_obj(x = mst122,
+                               multiple_terms = list(rel_obj1,rel_obj2,rel_obj3))
+weighted_sum_model<-onepanel_spec(x = mst122,
+                                  constraints = constraint_list,
+                                  objective = weighted_sum)
+# \dontrun{
+# ### Step 5: Execute assembly via solver
+# weighted_sum_result<-solve_model(model_spec = weighted_sum_model,
+#                                  solver = "HiGHS",check_feasibility = FALSE,
+#                                  time_limit = 60*5)
+# weighted_sum_panel<-assembled_panel(x = mst122,result = weighted_sum_result)
+# ### Step 6: Diagnose infeasible model
+# # There is an optimal solution. Skip this step.
+# }
+
+abs_obj1<-objective_term(x = mst122,attribute = "iif(theta=-1)",
+                         applied_level = "Module-level",
+                         which_module = 1,sense = "min",
+                         goal = 5)
+abs_obj2<-objective_term(x = mst122,attribute = "iif(theta=0)",
+                         applied_level = "Module-level",
+                         which_module = 1,sense = "min",
+                         goal = 5)
+abs_obj3<-objective_term(x = mst122,attribute = "iif(theta=1)",
+                         applied_level = "Module-level",
+                         which_module = 1,sense = "min",
+                         goal = 5)
+## unary minimax
+unary_minimax<-minimax_obj(x = mst122,
+                           multiple_terms = list(abs_obj1,abs_obj2,abs_obj3),
+                           strategy_args = list(mode = "one_dev"))
+unary_minimax_model<-onepanel_spec(x = mst122,
+                                   constraints = constraint_list,
+                                   objective = unary_minimax)
+# \dontrun{
+# ### Step 5: Execute assembly via solver
+# unary_minimax_result<-solve_model(model_spec = unary_minimax_model,
+#                                   solver = "HiGHS",check_feasibility = FALSE,
+#                                   time_limit = 60*5)
+# unary_minimax_panel<-assembled_panel(x = mst122,result = unary_minimax_result)
+# ### Step 6: Diagnose infeasible model
+# # There is an optimal solution. Skip this step.
+# }
+
+## binary minimax
+binary_minimax<-minimax_obj(x = mst122,
+                            multiple_terms = list(abs_obj1,abs_obj2,abs_obj3),
+                            strategy_args = list(mode = "two_dev"))
+binary_minimax_model<-onepanel_spec(x = mst122,
+                                    constraints = constraint_list,
+                                    objective = binary_minimax)
+# \dontrun{
+# ### Step 5: Execute assembly via solver
+# binary_minimax_result<-solve_model(model_spec = binary_minimax_model,
+#                                    solver = "HiGHS",check_feasibility = FALSE,
+#                                    time_limit = 60*5)
+# binary_minimax_panel<-assembled_panel(x = mst122,result = binary_minimax_result)
+# ### Step 6: Diagnose infeasible model
+# # There is an optimal solution. Skip this step.
+# }
+
+## goal_programming
+goal_programming<-goal_programming_obj(x = mst122,
+                                       multiple_terms = list(abs_obj1,abs_obj2,abs_obj3))
+goal_programming_model<-onepanel_spec(x = mst122,
+                                      constraints = constraint_list,
+                                      objective = goal_programming)
+# \dontrun{
+# ### Step 5: Execute assembly via solver
+# goal_programming_result<-solve_model(model_spec = goal_programming_model,
+#                                      solver = "HiGHS",check_feasibility = FALSE,
+#                                      time_limit = 60*5)
+# goal_programming_panel<-assembled_panel(x = mst122,result = goal_programming_result)
+# ### Step 6: Diagnose infeasible model
+# # There is an optimal solution. Skip this step.
+# }
+```
+
+### Step 7: Evaluate panel
+
+The assembled panels are saved as 
+
+- `data("maximin_panel")`
+- `data("capped_maximin_panel")`
+- `data("weighted_sum_panel")`
+- `data("unary_minimax_panel")`
+- `data("binary_minimax_panel")`
+- `data("goal_programming_panel")`
+
+```{r,echo=FALSE}
+data("maximin_panel")
+data("capped_maximin_panel")
+data("weighted_sum_panel")
+data("unary_minimax_panel")
+data("binary_minimax_panel")
+data("goal_programming_panel")
+```
+
+#### Number of TEI items per pathway
+
+It can be checked via `report_test_itemcat()`.
+
+```{r,echo=FALSE}
+TEI_check <- data.frame(
+  Formulation = c("Maximin",
+                  "Capped Maximin",
+                  "Weighted Sum",
+                  "Unary Minimax",
+                  "Binary Minimax",
+                  "Goal Programming"),
+  `S1R-S2E-S3E` = rep(2, 6),
+  `S1R-S2H-S3E` = rep(2, 6),
+  `S1R-S2E-S3H` = rep(2, 6),
+  `S1R-S2H-S3H` = rep(2, 6),
+  check.names = FALSE
+)
+
+kable(TEI_check,
+      align = c("l", "r", "r", "r", "r"),
+      caption = "Check: Number of TEIs per pathway")
+```
+
+#### Total expected response item per pathway
+
+It can be checked via `report_test_itemquant()`.
+
+```{r,echo=FALSE}
+Time_check <- data.frame(
+  Formulation = c("Maximin",
+                  "Capped Maximin",
+                  "Weighted Sum",
+                  "Unary Minimax",
+                  "Binary Minimax",
+                  "Goal Programming"),
+  `S1R-S2E-S3E` = c(35.55, 38.42, 36.96, 35.03, 34.95, 36.56),
+  `S1R-S2H-S3E` = c(35.24, 37.30, 35.87, 35.63, 36.32, 36.80),
+  `S1R-S2E-S3H` = c(38.52, 36.50, 34.89, 33.28, 34.21, 35.70),
+  `S1R-S2H-S3H` = c(38.21, 35.39, 33.80, 33.88, 35.58, 35.94),
+  check.names = FALSE
+)
+
+kable(Time_check,
+      digits = 2,
+      align = c("l", "r", "r", "r", "r"),
+      caption = "Check: Total expected response time (minutes) per pathway")
+
+```
+
+#### Number of items per content per module
+
+It can be checked via `report_test_itemcat()`.
+
+```{r,echo=FALSE}
+Content_check <- data.frame(
+  Formulation = c("Maximin",
+                  "Capped Maximin",
+                  "Weighted Sum",
+                  "Unary Minimax",
+                  "Binary Minimax",
+                  "Goal Programming"),
+  S1R = c("(2,3,3,4)",
+          "(2,4,3,3)",
+          "(3,2,3,4)",
+          "(2,4,3,3)",
+          "(2,4,3,3)",
+          "(2,3,4,3)"),
+  S2E = c("(2,2,4,4)",
+          "(2,2,4,4)",
+          "(2,2,4,4)",
+          "(4,2,3,3)",
+          "(2,2,4,4)",
+          "(3,3,4,2)"),
+  S2H = c("(2,3,3,4)",
+          "(3,3,4,2)",
+          "(2,3,4,3)",
+          "(3,4,2,3)",
+          "(3,2,4,3)",
+          "(2,3,4,3)"),
+  S3E = c("(2,3,3,4)",
+          "(2,4,4,2)",
+          "(3,3,4,2)",
+          "(2,3,4,3)",
+          "(3,2,4,3)",
+          "(2,3,3,4)"),
+  S3H = c("(2,3,3,4)",
+          "(2,3,3,4)",
+          "(2,3,3,4)",
+          "(3,2,3,4)",
+          "(3,3,3,3)",
+          "(4,4,2,2)"),
+  check.names = FALSE
+)
+
+kable(Content_check,
+      align = c("l", "c", "c", "c", "c", "c"),
+      caption = "Check: Content distribution across stages")
+```
+
+
+#### Number of items per dok level per module
+
+It can be checked via `report_test_itemcat()`.
+
+```{r,echo=FALSE}
+DOK_check <- data.frame(
+  Formulation = c("Maximin",
+                  "Capped Maximin",
+                  "Weighted Sum",
+                  "Unary Minimax",
+                  "Binary Minimax",
+                  "Goal Programming"),
+  S1R = c("(4,5,3)",
+          "(4,5,3)",
+          "(5,3,4)",
+          "(4,4,4)",
+          "(4,5,3)",
+          "(4,3,5)"),
+  S2E = c("(5,4,3)",
+          "(3,4,5)",
+          "(3,5,4)",
+          "(3,5,4)",
+          "(3,4,5)",
+          "(4,5,3)"),
+  S2H = c("(3,4,5)",
+          "(3,4,5)",
+          "(4,4,4)",
+          "(5,3,4)",
+          "(3,4,5)",
+          "(3,5,4)"),
+  S3E = c("(4,5,3)",
+          "(4,4,4)",
+          "(3,4,5)",
+          "(3,5,4)",
+          "(4,4,4)",
+          "(4,4,4)"),
+  S3H = c("(5,4,3)",
+          "(4,4,4)",
+          "(3,4,5)",
+          "(5,4,3)",
+          "(3,5,4)",
+          "(3,4,5)"),
+  check.names = FALSE
+)
+
+kable(DOK_check,
+      align = c("l", "c", "c", "c", "c", "c"),
+      caption = "Check: DOK distribution across stages")
+```
+
+#### Mean difficulty for adaptive modules
+
+It can be checked via `report_test_itemquant()`.
+
+```{r,echo=FALSE}
+Meandiff_check <- data.frame(
+  Formulation = c("Maximin",
+                  "Capped Maximin",
+                  "Weighted Sum",
+                  "Unary Minimax",
+                  "Binary Minimax",
+                  "Goal Programming"),
+  S2E = c(-0.46, -0.52, -0.53, -0.49, -0.46, -0.51),
+  S2H = c(0.50, 0.53, 0.53, 0.46, 0.50, 0.54),
+  S3E = c(-0.97, -0.96, -1.00, -1.02, -0.98, -0.96),
+  S3H = c(1.04, 0.98, 1.02, 0.99, 1.03, 0.98),
+  check.names = FALSE
+)
+
+kable(Meandiff_check,
+      digits = 2,
+      align = c("l", "r", "r", "r", "r"),
+      caption = "Check: Mean difficulty for adaptive modules")
+```
+
+#### Pathway TIF plots
+
+It can be checked via `plot_panel_tif()`.
+
+```{r,echo=FALSE}
+p1<-plot_panel_tif(assembled_panel = maximin_panel,
+                   item_par_cols = list("2PL" = c("discrimination", "difficulty")),
+                   theta = seq(-3,3,0.1),model_col = "model",D = 1,
+                   unit = "pathway") +
+  geom_vline(xintercept = c(-1.15, -0.67, -0.32,0.32,0.67,1.15),
+             linetype = "dashed",color = "grey40",linewidth = 0.7) +
+  labs(title = "Maximin Formulation") +
+  theme(plot.title = element_text(face = "bold", hjust = 0.5))+
+  scale_y_continuous(limits = c(0, 20),breaks = c(0, 10, 15,20))
+  
+p2<-plot_panel_tif(assembled_panel = capped_maximin_panel,
+                   item_par_cols = list("2PL" = c("discrimination", "difficulty")),
+                   theta = seq(-3,3,0.1),model_col = "model",D = 1,
+                   unit = "pathway") +
+  geom_vline(xintercept = c(-1.15, -0.67, -0.32,0.32,0.67,1.15),
+             linetype = "dashed",color = "grey40",linewidth = 0.7) +
+  labs(title = "Capped Maximin Formulation") +
+  theme(plot.title = element_text(face = "bold", hjust = 0.5))+
+  scale_y_continuous(limits = c(0, 20),breaks = c(0, 10, 15,20))
+
+p3<-plot_panel_tif(assembled_panel = weighted_sum_panel,
+                   item_par_cols = list("2PL" = c("discrimination", "difficulty")),
+                   theta = seq(-3,3,0.1),model_col = "model",D = 1,
+                   unit = "pathway") +
+  geom_vline(xintercept = c(-1.15, -0.67, -0.32,0.32,0.67,1.15),
+             linetype = "dashed",color = "grey40",linewidth = 0.7)+
+  labs(title = "Weighted Sum Formulation") +
+  theme(plot.title = element_text(face = "bold", hjust = 0.5))+
+  scale_y_continuous(limits = c(0, 20),breaks = c(0, 10, 15,20))
+
+p4<-plot_panel_tif(assembled_panel = unary_minimax_panel,
+                   item_par_cols = list("2PL" = c("discrimination", "difficulty")),
+                   theta = seq(-3,3,0.1),model_col = "model",D = 1,
+                   unit = "pathway") +
+  geom_vline(xintercept = c(-1.15, -0.67, -0.32,0.32,0.67,1.15),
+             linetype = "dashed",color = "grey40",linewidth = 0.7)+
+  labs(title = "Unary Minimax Formulation") +
+  theme(plot.title = element_text(face = "bold", hjust = 0.5))+
+  scale_y_continuous(limits = c(0, 20),breaks = c(0, 10, 15,20))
+
+p5<-plot_panel_tif(assembled_panel = binary_minimax_panel,
+                   item_par_cols = list("2PL" = c("discrimination", "difficulty")),
+                   theta = seq(-3,3,0.1),model_col = "model",D = 1,
+                   unit = "pathway") +
+  geom_vline(xintercept = c(-1.15, -0.67, -0.32,0.32,0.67,1.15),
+             linetype = "dashed",color = "grey40",linewidth = 0.7)+
+  labs(title = "Binary Minimax Formulation") +
+  theme(plot.title = element_text(face = "bold", hjust = 0.5))+
+  scale_y_continuous(limits = c(0, 20),breaks = c(0, 10, 15,20))
+
+p6<-plot_panel_tif(assembled_panel = goal_programming_panel,
+                   item_par_cols = list("2PL" = c("discrimination", "difficulty")),
+                   theta = seq(-3,3,0.1),model_col = "model",D = 1,
+                   unit = "pathway") +
+  geom_vline(xintercept = c(-1.15, -0.67, -0.32,0.32,0.67,1.15),
+             linetype = "dashed",color = "grey40",linewidth = 0.7)+
+  labs(title = "Goal Programming Formulation") +
+  theme(plot.title = element_text(face = "bold", hjust = 0.5))+
+  scale_y_continuous(limits = c(0, 20),breaks = c(0, 10, 15,20))
+ggarrange(p1,p2,p3,p4,p5,p6,common.legend = TRUE,ncol = 3,nrow = 2)
+
+```
+
+#### Module TIF plot
+
+It can be checked via `plot_panel_tif()`.
+
+```{r,echo=FALSE}
+p7<-plot_panel_tif(assembled_panel = maximin_panel,
+                   item_par_cols = list("2PL" = c("discrimination", "difficulty")),
+                   theta = seq(-3,3,0.1),model_col = "model",D = 1,
+                   unit = "module") +
+  geom_vline(xintercept = 0,
+             linetype = "dashed",color = "grey40",linewidth = 0.7) +
+  labs(title = "Maximin Formulation") +
+  theme(plot.title = element_text(face = "bold", hjust = 0.5))+
+  scale_y_continuous(limits = c(0, 12),breaks = c(0, 4,8,12))
+
+p8<-plot_panel_tif(assembled_panel = capped_maximin_panel,
+                   item_par_cols = list("2PL" = c("discrimination", "difficulty")),
+                   theta = seq(-3,3,0.1),model_col = "model",D = 1,
+                   unit = "module") +
+  geom_vline(xintercept = 0,
+             linetype = "dashed",color = "grey40",linewidth = 0.7) +
+  labs(title = "Capped Maximin Formulation") +
+  theme(plot.title = element_text(face = "bold", hjust = 0.5))+
+  scale_y_continuous(limits = c(0, 12),breaks = c(0, 4,8,12))
+
+p9<-plot_panel_tif(assembled_panel = weighted_sum_panel,
+                   item_par_cols = list("2PL" = c("discrimination", "difficulty")),
+                   theta = seq(-3,3,0.1),model_col = "model",D = 1,
+                   unit = "module") +
+  geom_vline(xintercept = 0,
+             linetype = "dashed",color = "grey40",linewidth = 0.7)+
+  labs(title = "Weighted Sum Formulation") +
+  theme(plot.title = element_text(face = "bold", hjust = 0.5))+
+  scale_y_continuous(limits = c(0, 12),breaks = c(0, 4,8,12))
+
+p10<-plot_panel_tif(assembled_panel = unary_minimax_panel,
+                   item_par_cols = list("2PL" = c("discrimination", "difficulty")),
+                   theta = seq(-3,3,0.1),model_col = "model",D = 1,
+                   unit = "module") +
+  geom_vline(xintercept = 0,
+             linetype = "dashed",color = "grey40",linewidth = 0.7)+
+  labs(title = "Unary Minimax Formulation") +
+  theme(plot.title = element_text(face = "bold", hjust = 0.5))+
+  scale_y_continuous(limits = c(0, 12),breaks = c(0, 4,8,12))
+
+p11<-plot_panel_tif(assembled_panel = binary_minimax_panel,
+                   item_par_cols = list("2PL" = c("discrimination", "difficulty")),
+                   theta = seq(-3,3,0.1),model_col = "model",D = 1,
+                   unit = "module") +
+  geom_vline(xintercept = 0,
+             linetype = "dashed",color = "grey40",linewidth = 0.7)+
+  labs(title = "Binary Minimax Formulation") +
+  theme(plot.title = element_text(face = "bold", hjust = 0.5))+
+  scale_y_continuous(limits = c(0, 12),breaks = c(0, 4,8,12))
+
+p12<-plot_panel_tif(assembled_panel = goal_programming_panel,
+                   item_par_cols = list("2PL" = c("discrimination", "difficulty")),
+                   theta = seq(-3,3,0.1),model_col = "model",D = 1,
+                   unit = "module") +
+  geom_vline(xintercept = 0,
+             linetype = "dashed",color = "grey40",linewidth = 0.7)+
+  labs(title = "Goal Programming Formulation") +
+  theme(plot.title = element_text(face = "bold", hjust = 0.5))+
+  scale_y_continuous(limits = c(0, 12),breaks = c(0, 4,8,12))
+ggarrange(p7,p8,p9,p10,p11,p12,common.legend = TRUE,ncol = 3,nrow = 2)
+```
+
+#### TIF values at -1, 0, 1 for S1R module
+
+It can be checked via `report_test_tif()`.
+
+```{r,echo=FALSE}
+Obj_check <- data.frame(
+  Formulation = c("Maximin",
+                  "Capped Maximin",
+                  "Weighted Sum",
+                  "Unary Minimax",
+                  "Binary Minimax",
+                  "Goal Programming"),
+  theta_m1 = c(4.97, 4.88, 4.36, 4.90, 4.88, 5.00),
+  theta_0  = c(5.41, 4.94, 10.32, 5.09, 4.94, 5.03),
+  theta_1  = c(4.96, 4.87, 5.93, 4.88, 4.87, 4.77)
+)
+
+kable(Obj_check,
+      digits = 2,
+      escape = FALSE,
+      align = c("l", "r", "r", "r"),
+      col.names = c("Formulation", "\\(\\theta = -1\\)", "\\(\\theta = 0\\)", "\\(\\theta = 1\\)"),
+      caption = "Check: Realized objective values at -1, 0 and 1 for S1R module")
+```
+
+#### Solver performance
+
+```{r,echo=FALSE}
+tab <- data.frame(
+  Formulation = c("Maximin",
+                  "Capped Maximin",
+                  "Weighted Sum",
+                  "Unary Minimax",
+                  "Binary Minimax",
+                  "Goal Programming"),
+  Obj_Val = c(4.959, 4.809, 20.608, 0.118, 0.126, 0.253),
+  RunTime_Seconds = c(1.684,3.677,0.931,8.653,3.206,5.350),
+  check.names = FALSE
+)
+
+kable(tab,
+      col.names = c("Formulation", "Objective Value", "Runtime (Seconds)"),
+      digits = 3,
+      align = c("l", "r", "r"),
+      caption = "Comparison of objective values and solver runtime across multiple-objective formulations.")
+```
+
+#### Analytical approach to evaluate the performance of MST panel
+
+It can be done via `analytic_mst_precision_items()`.
+
+```{r,echo=FALSE}
+maximin_eval<-analytic_mst_precision_items(design = "1-2-2",cut_scale = "theta",cuts = list(0,0),
+                                           assembled_panel = maximin_panel,
+                                           item_par_cols = list("2PL"=c("discrimination","difficulty")),
+                                           model_col = "model",D = 1,theta = seq(-3,3,0.1),
+                                           range_tcc = c(-5,5))$Panel_1$eval_tb
+cappedmaximin_eval<-analytic_mst_precision_items(design = "1-2-2",cut_scale = "theta",cuts = list(0,0),
+                                                 assembled_panel = capped_maximin_panel,
+                                                 item_par_cols = list("2PL"=c("discrimination","difficulty")),
+                                                 model_col = "model",D = 1,theta = seq(-3,3,0.1),
+                                                 range_tcc = c(-5,5))$Panel_1$eval_tb
+weightedsum_eval<-analytic_mst_precision_items(design = "1-2-2",cut_scale = "theta",cuts = list(0,0),
+                                               assembled_panel = weighted_sum_panel,
+                                               item_par_cols = list("2PL"=c("discrimination","difficulty")),
+                                               model_col = "model",D = 1,theta = seq(-3,3,0.1),
+                                               range_tcc = c(-5,5))$Panel_1$eval_tb
+unaryminimax_eval<-analytic_mst_precision_items(design = "1-2-2",cut_scale = "theta",cuts = list(0,0),
+                                                assembled_panel = unary_minimax_panel,
+                                                item_par_cols = list("2PL"=c("discrimination","difficulty")),
+                                                model_col = "model",D = 1,theta = seq(-3,3,0.1),
+                                                range_tcc = c(-5,5))$Panel_1$eval_tb
+binaryminimax_eval<-analytic_mst_precision_items(design = "1-2-2",cut_scale = "theta",cuts = list(0,0),
+                                                 assembled_panel = binary_minimax_panel,
+                                                 item_par_cols = list("2PL"=c("discrimination","difficulty")),
+                                                 model_col = "model",D = 1,theta = seq(-3,3,0.1),
+                                                 range_tcc = c(-5,5))$Panel_1$eval_tb
+goalprog_eval<-analytic_mst_precision_items(design = "1-2-2",cut_scale = "theta",cuts = list(0,0),
+                                            assembled_panel = goal_programming_panel,
+                                            item_par_cols = list("2PL"=c("discrimination","difficulty")),
+                                            model_col = "model",D = 1,theta = seq(-3,3,0.1),
+                                            range_tcc = c(-5,5))$Panel_1$eval_tb
+
+eval_plot<-rbind(maximin_eval,cappedmaximin_eval,weightedsum_eval,
+                 unaryminimax_eval,binaryminimax_eval,goalprog_eval)
+eval_plot[,"Formulation"]<-rep(c("Maximin","Capped Maximin","Weighted Sum",
+                                 "Unary Minimax","Binary Minimax","Goal Programming"),
+                               each = nrow(maximin_eval))
+ggplot(data = eval_plot,aes(x = theta, y = bias, colour = Formulation)) +
+  geom_line() +
+  theme_bw() +
+  theme(legend.position = "bottom") +
+  scale_x_continuous(breaks = pretty(range(eval_plot$theta), n = 11))+
+  labs(title = "Conditional bias (Recursion-based analytical approach)")
+ggplot(data = eval_plot,aes(x = theta, y = csem, colour = Formulation)) +
+  geom_line() +
+  theme_bw() +
+  theme(legend.position = "bottom") +
+  scale_x_continuous(breaks = pretty(range(eval_plot$theta), n = 11))+
+  labs(title = "Conditional SEM (Recursion-based analytical approach)")
+```
+
+## Practical Guidance
+
+Start with a single-objective baseline, then layer in additional objectives as needed.
+
+Weighted sum is simple and solver-friendly, but requires choosing weights. If the weights are not chosen carefully, objectives that are easier to satisfy can dominate the overall multi-objective optimization.
+
+Goal programming is ideal when targets are explicit. It is especially useful for operational test assembly where meeting blueprint targets closely is more important than strictly maximizing any single performance metric.
+
+Maximin / capped maximin/minimax is useful when robust performance across theta is a primary concern.
+
+## Summary
+
+This vignette presented common multiple-objective formulations supported by `mstATA` and showed how objective terms can be combined transparently using dedicated constructors. The same modeling workflow applies regardless of formulation: define structure and constraints, define objective terms, compile objective strategy, and solve using a MILP solver.

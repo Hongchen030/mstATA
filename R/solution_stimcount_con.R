@@ -1,0 +1,164 @@
+#' @title Generate Solution-Level Constraints on the Number of Unique Stimuli Selected Across Panels
+#'
+#' @description
+#' This function constructs a **solution-level constraint** that controls the
+#' number of *distinct stimuli* appearing in the final multi-panel MST assembly.
+#'
+#' The constraint may impose a:
+#' \itemize{
+#'   \item minimum number of unique stimuli,
+#'   \item maximum number of unique stimuli, or
+#'   \item fixed (exact) number of unique stimuli.
+#' }
+#'
+#' that may appear anywhere across all assembled panels.
+#'
+#' The number of constraints generated is 1. If both a range needs to be specified,
+#' call this function twice.
+#'
+#' @param x An object of class `"mstATA_design"` created by `mst_design()`.
+#' @param operator A character string specifying the constraint type.
+#'   Must be one of \code{"<="}, \code{"="}, or \code{">="}.
+#' @param target_num A scalar giving the required number of unique
+#'   stimuli across panels.
+#'
+#' @details
+#' **1. Specification**
+#'
+#' This constraint enforces:
+#'
+#' \strong{A minimum, exact, or maximum number of unique stimuli must be selected across all panels in the assembled MST solution.}
+#'
+#' Key characteristics:
+#'
+#' \itemize{
+#' \item The attribute type is \emph{categorical}: each stimulus is assigned a unique ID.
+#' \item The attribute is defined at \emph{stimulus level} in the item pool.
+#' \item The constraint is enforced at the \strong{Solution-level}, i.e., across all panels.
+#' }
+#'
+#'
+#' @section Mathematical Formulation:
+#'
+#' Suppose the item pool contains (S - 1) stimulus-based item sets, indexed by
+#' \eqn{s = 1, \ldots, S - 1}. Each stimulus has a designated pivot item,
+#' indexed by \eqn{i_s^{*}}. In addition, the pool contains a set of discrete
+#' (non–stimulus-based) items, which are represented by a dummy stimulus
+#' \eqn{s = S} to allow a unified indexing scheme. Items belonging to stimulus
+#' \eqn{s} are indexed as \eqn{i_s = 1, 2, \ldots, I_s}.
+#'
+#'
+#' For each item \eqn{i_s},
+#'
+#' \deqn{
+#'   s_{i_s} =
+#'   \begin{cases}
+#'     1, & \text{if item } i_s \text{ is used in any module in any panel}, \\
+#'     0, & \text{otherwise}.
+#'   \end{cases}
+#' }
+#'
+#' The solution-level variables track whether an item appears anywhere in the assembled
+#' multi-panel solution.
+#'
+#' The total number of unique stimuli selected at the solution
+#' level is controlled through:
+#'
+#' \deqn{
+#'   \sum_{s=1}^{S-1} s_{i_s^{*}}
+#'   \;\substack{\le \\ \ge \\ =}\;
+#'   n^{stim} .
+#' }
+#'
+#' Here:
+#' \itemize{
+#'   \item \eqn{s_{i_s^{*}}} indicates whether the pivot item for stimulus
+#'   s is selected in any panel, thereby indicating whether the stimulus s
+#'   is selected in any panel.
+#'
+#'   \item \eqn{\substack{\leq \\ \geq \\ =}} denotes that the specification may take the form of an
+#'   upper bound, lower bound, or exact value.
+#'
+#' }
+#'
+#'
+#' @return An object of S3 class \code{"mstATA_constraint"} with named elements:
+#' \describe{
+#'   \item{name}{A character vector indicating the specifications in each row of `A_binary`}
+#'   \item{specification}{A \code{data.frame} summarizing the constraint specification, including
+#'    the requirement name, attribute, constraint type, application level,
+#'    operator, and the number of constraint rows generated.}
+#'   \item{A_binary}{A sparse binary matrix representing the linear constraint coefficients.}
+#'   \item{A_real}{NULL for 'mstATA_constraint' object}
+#'   \item{operators}{A character vector of constraint operators, one per row of `A_binary`.}
+#'   \item{d}{A numeric vector of right-hand-side values for the constraints.}
+#'   \item{C_binary}{NULL for 'mstATA_constraint' object}
+#'   \item{C_real}{NULL for 'mstATA_constraint' object}
+#'   \item{sense}{NULL for 'mstATA_constraint' object}
+#' }
+#'
+#' @examples
+#' data("reading_itempool")
+#'
+#' pivot_stim_map <- create_pivot_stimulus_map(
+#'   itempool = reading_itempool,
+#'   stimulus = "stimulus",
+#'   pivot_item = "pivot_item"
+#' )
+#'
+#' test_mstATA <- mst_design(
+#'   itempool = reading_itempool,
+#'   design = "1-3-3",
+#'   module_length = c(5,7,7,7,8,8,8),
+#'   pivot_stim_map = pivot_stim_map
+#' )
+#'
+#' # Require between 5 and 10 unique stimuli across all assembled panels
+#' con1<-solution_stimcount_con(test_mstATA,">=",5)
+#' con2<-solution_stimcount_con(test_mstATA,"<=",10)
+#' @export
+
+
+solution_stimcount_con<-function(x,operator,target_num){
+  if (!inherits(x, "mstATA_design")) {
+    stop("Input 'x' must be an object of class 'mstATA_design'.")
+  }
+  check_nonneg_integer(target_num,"target_num")
+  operator<-check_operator(operator = operator)
+  if(operator==">="){
+    name<-"(min)"
+  }else if(operator=="<="){
+    name<-"(max)"
+  }else{
+    name<-"(exact)"
+  }
+  ConstraintMatrix_name<-paste0(name," number of unique stimuli across panels")
+
+  pivot_stim_map<-x$pivot_stim_map
+  if (is.null(pivot_stim_map)) {
+    stop("Stimulus-based constraints require `pivot_stim_map` ","to be provided in `mst_design()`.",
+         call. = FALSE)
+  }
+  pivot_item_ids  <- pivot_stim_map$pivot_item_id
+
+  ItemPool<-x$ItemPool
+  PoolSize<-nrow(ItemPool)
+
+  ConstraintMatrix<-Matrix::Matrix(0, nrow = 1, ncol = PoolSize, sparse = TRUE)
+  ConstraintMatrix[1,pivot_item_ids] <- 1
+  colnames(ConstraintMatrix)<-paste0("s[", seq_len(PoolSize), "]")
+
+
+  Specification<-data.frame(a="Unique stimulus count",
+                            b="Stimulus_id",c="Categorical",
+                            d="Solution-level",e=name,
+                            f=nrow(ConstraintMatrix),
+                            stringsAsFactors = FALSE)
+  colnames(Specification)<-c("Requirement","Attribute","Type","Application Level","Operator","Num of Constraints")
+  Specification$`Num of Constraints`<-as.numeric(Specification$`Num of Constraints`)
+  return(create_constraint(name=ConstraintMatrix_name,
+                           specification = Specification,
+                           A_binary = ConstraintMatrix,A_real = NULL,
+                           operators = operator,d = target_num,
+                           C_binary = NULL,C_real = NULL))
+}

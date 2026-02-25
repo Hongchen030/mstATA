@@ -1,0 +1,707 @@
+---
+title: "Detecting and Resolving Infeasibility"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Detecting and Resolving Infeasibility}
+  %\VignetteEngine{knitr::rmarkdown}
+  \usepackage[utf8]{inputenc}
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  fig.width = 7,
+  fig.height = 4.5
+)
+library(knitr)
+library(kableExtra)
+```
+
+## Introduction
+
+Infeasibility in automatic test assembly commonly arises from two sources. 
+
+- First, the item bank may be deficient, lacking sufficient items with required categorical or quantitative attributes.   
+
+- Second, infeasibility may result from contradictory constraints, where inconsistencies or logical incompatibilities prevent simultaneous satisfaction of all requirements. For example, upper and lower bounds specified at different hierarchical levels (e.g., module-level versus panel-level constraints) may conflict, rendering the optimization problem unsolvable.
+
+
+This vignette demonstrates a structured workflow for:
+
+- Detecting infeasibility
+- Diagnosing constraint conflicts
+- Relaxing constraints systematically
+- Using slack-variable approaches
+- Best practices for preventing infeasibility
+
+## Examples: Introduce Infeasibility
+
+A simulated item pool is used for analysis and can be accessed via `data("mixe_format_pool")`. Specifications for each panel is the same as that in *Formulation for Multiple Objectives* vignette. Minimax strategy (mode = "one_dev") is used
+to formulate multiple objectives (minimize the largest deviation between the realized TIF values and the target value of 5 at $\theta = -1,0,1$ for S1R module). 
+
+```{r,echo=FALSE}
+testing3 <- data.frame(
+  Specification = c(
+    "MST structure",
+    
+    "Item exposure control",
+    
+    "TEI",
+    "Response time",
+    "TIF threshold","",
+    
+    "Stimulus num and type","","",
+    "Content","DOK","Mean difficulty",
+    
+    "Item count in a selected stimulus","",
+    "TEI item count in a selected stimulus",
+    "No enemy items",
+
+    "Stimulus complexity score",
+    
+    "capped maximin"
+  ),
+  Description = c(
+    "MST 1-2-2, each module contains 12 items. RDP: 0",
+    
+    "Unique items are used across modules in the panel.",
+    
+    "Each pathway has at most 2 TEI items.",
+    "The total response time per pathway should be between 20 and 40 minutes.",
+    "Minimum TIF values for the easier pathways (S1R-S2E-S3E and S1R-S2H-S3E): TIF values must be at least 10 at $\\theta$ = -1.15, -0.67 and -0.32",
+    "Minimum TIF values for the harder pathways (S1R-S2E-S3H and S1R-S2H-S3H): TIF values must be at least 10 at $\\theta$ = 0.32, 0.67 and 1.15",
+    
+    "S1R module does not include any stimuli",
+    "S2E and S2H each contain 1 text-based stimulus.",
+    "S3E and S3H each contain 1 graphic-based stimulus.",
+    "Min and Max number of items (4 content areas) per module: (2,4)",
+    "Min and Max number of items for DOK 1–3 per module: (3,5)",
+    "S2E: (-0.55,-0.45), S2H: (0.45,0.55), S3E: (-1.05,-0.95), S3H: (0.95,1.05)",
+    
+    "S1R module does not have items associated with any stimulus.",
+    "At least 4 items conditional on the selection of a stimulus in S2E, S2H, S3E and S3H.",
+    "At most 1 TEI item conditional on a selected stimulus in S2E, S2H, S3E and S3H.",
+     "Items from the same enemy group cannot appear in the same pathway.",
+
+    "The complexity score from selected stimulus should be between 4.5 and 8.5.",
+
+    "$\\min\\; d \\quad \\text{s.t. }\\; \\lvert y_k - 5 \\rvert \\le d$"
+  ),
+  `Num of Constraints` = c(9,1000,4,8,6,6,
+                           2,2,2,40,30,8,
+                           30,240,120,40,
+                           240,
+                           6)
+)
+colnames(testing3)<-c("Specification","Description","Num of Constraints")
+
+kable(
+  testing3,
+  booktabs = TRUE,
+  escape = FALSE,
+  caption = "Specifications for MST 1-2-2 with discrete and stimulus-based items"
+) |>
+  kable_styling(
+    latex_options = c("hold_position"),
+    full_width = FALSE,
+    font_size = 10,
+    position = "center"
+  ) |>
+  column_spec(1, width = "4cm") |>
+  column_spec(2, width = "8cm") |>
+  column_spec(3, width = "2cm") |>
+  pack_rows(group_label = "Structure requirements",1,1)|>
+  pack_rows(group_label = "Panel-level requirements",2,2)|>
+  pack_rows(group_label = "Pathway-level requirements",3,6)|>
+  pack_rows(group_label = "Module-level requirements",7,12)|>
+  pack_rows(group_label = "Itemset-level requirements",13,16)|>
+  pack_rows(group_label = "Stimulus-level requirements",17,17)|>
+  pack_rows(group_label = "Relative Objective: Maximize the TIFs at -1, 0 and 1",18,18)
+```
+
+### Constructing `mstATA_model` for one panel
+
+There are 1793 linear constraints for an MST panel. 
+```{r,eval=FALSE}
+data("mixed_format_pool")
+# step 1: prepare item pool
+low_abilities<-c(-1.15,-0.67,-0.32)
+high_abilities<-c(0.32,0.67,1.15)
+target_abilities<-c(-1,0,1)
+theta_points<-c(low_abilities,high_abilities,target_abilities)
+theta_information<-compute_iif(mixed_format_pool,
+                               item_par_cols = list("2PL"=c("discrimination","difficulty")),
+                               theta = theta_points,
+                               model_col = "model",D = 1)
+mixed_format_pool[,paste0("iif(theta=",theta_points,")")]<-theta_information
+enemyitem_set<-create_enemy_sets(mixed_format_pool$item_id,
+                                 mixed_format_pool$enemyitem,
+                                 sep_pattern = ",")
+pivot_stim_map<-create_pivot_stimulus_map(mixed_format_pool,
+                                          item_id_col = "item_id",
+                                          stimulus = "stim",
+                                          pivot_item = "pivot")
+# step 2: specify mst structure
+mst122<-mst_design(itempool = mixed_format_pool,item_id_col = "item_id",
+                   design = "1-2-2",rdp = list(c(0),c(0)),
+                   module_length = rep(12,5),
+                   enemyitem_set = enemyitem_set,
+                   pivot_stim_map = pivot_stim_map)
+# step 3: identify hierarchical requirements
+
+# step 4: translate to linear model
+mst_structure<-mst_structure_con(x = mst122,info_tol = 0.1)
+mst_noreuse<-panel_itemreuse_con(x = mst122,overlap = FALSE)
+mst_tei<-test_itemcat_con(x = mst122,attribute = "itemtype",cat_levels = "TEI",
+                          operator = "<=",target_num = 2,which_pathway = 1:4)
+mst_time<-test_itemquant_range_con(x = mst122,attribute = "time",
+                                   min = 20*60,max = 40*60,
+                                   which_pathway = 1:4)
+mst_tif_low1<-test_itemquant_con(x = mst122,
+                                 attribute = "iif(theta=-1.15)",
+                                 operator = ">=",
+                                 target_value = 10,
+                                 which_pathway = 1:2)
+mst_tif_low2<-test_itemquant_con(x = mst122,
+                                 attribute = "iif(theta=-0.67)",
+                                 operator = ">=",
+                                 target_value = 10,
+                                 which_pathway = 1:2)
+mst_tif_low3<-test_itemquant_con(x = mst122,
+                                 attribute = "iif(theta=-0.32)",
+                                 operator = ">=",
+                                 target_value = 10,
+                                 which_pathway = 1:2)
+mst_tif_high1<-test_itemquant_con(x = mst122,
+                                  attribute = "iif(theta=0.32)",
+                                  operator = ">=",
+                                  target_value = 10,
+                                  which_pathway = 3:4)
+mst_tif_high2<-test_itemquant_con(x = mst122,
+                                  attribute = "iif(theta=0.67)",
+                                  operator = ">=",
+                                  target_value = 10,
+                                  which_pathway = 3:4)
+mst_tif_high3<-test_itemquant_con(x = mst122,
+                                  attribute = "iif(theta=1.15)",
+                                  operator = ">=",
+                                  target_value = 10,
+                                  which_pathway = 3:4)
+mst_stimtype_s1<-test_stimcat_con(x = mst122,
+                                  attribute = "stimtype",
+                                  cat_levels = c("text-based","graphic-based"),
+                                  operator = "=",
+                                  target_num = 0,which_module = 1)
+mst_stimtype_s2<-test_stimcat_con(x = mst122,
+                                  attribute = "stimtype",
+                                  cat_levels = "text-based",
+                                  operator = "=",
+                                  target_num = 1,which_module = 2:3)
+mst_stimtype_s3<-test_stimcat_con(x = mst122,attribute = "stimtype",
+                                  cat_levels = "graphic-based",
+                                  operator = "=",
+                                  target_num = 1,which_module = 4:5)
+mst_content<-test_itemcat_range_con(x = mst122,
+                                    attribute = "content",
+                                    cat_levels = paste0("content ",1:4),
+                                    target = 3,deviation = 1,
+                                    which_module = 1:5)
+mst_dok<-test_itemcat_range_con(x = mst122,
+                                attribute = "dok",
+                                cat_levels = paste0("dok ",1:3),
+                                min = 3,max = 5,
+                                which_module = 1:5)
+mst_meandiff<-test_itemquant_range_con(x = mst122,
+                                       attribute = "difficulty",
+                                       target = c(-0.5,0.5,-1,1)*12,
+                                       deviation = 0.05*12,
+                                       which_module = 2:5)
+mst_stimitem_s1<-stim_itemcount_con(x = mst122,
+                                    min = 0,max = 0,
+                                    which_module = 1)
+mst_stimitem_s2_s3<-stim_itemcount_con(x = mst122,
+                                       min = 4,max = NULL,
+                                       which_module = 2:5)
+mst_stimitemtype<-stim_itemcat_con(x = mst122,
+                                   attribute = "itemtype",cat_levels = "TEI",
+                                   min = NULL,max = 1,
+                                   which_module = 2:5)
+mst_noenemy<-enemyitem_exclu_con(x = mst122)
+mst_stimcomplexity<-stimquant_con(x = mst122,
+                                  attribute = "stimcomplexity",
+                                  min = 4.5,max = 8.5,
+                                  which_module = 2:5)
+constraint_list<-list(mst_structure,
+                      mst_noreuse,
+                      mst_tei,mst_time,
+                      mst_tif_low1,mst_tif_low2,mst_tif_low3,
+                      mst_tif_high1,mst_tif_high2,mst_tif_high3,
+                      mst_stimtype_s1,mst_stimtype_s2,mst_stimtype_s3,
+                      mst_content,mst_dok,mst_meandiff,
+                      mst_stimitem_s1,mst_stimitem_s2_s3,
+                      mst_stimitemtype,
+                      mst_noenemy,
+                      mst_stimcomplexity)
+abs_obj1<-objective_term(x = mst122,attribute = "iif(theta=-1)",
+                         applied_level = "Module-level",
+                         which_module = 1,sense = "min",
+                         goal = 5)
+abs_obj2<-objective_term(x = mst122,attribute = "iif(theta=0)",
+                         applied_level = "Module-level",
+                         which_module = 1,sense = "min",
+                         goal = 5)
+abs_obj3<-objective_term(x = mst122,attribute = "iif(theta=1)",
+                         applied_level = "Module-level",
+                         which_module = 1,sense = "min",
+                         goal = 5)
+unary_minimax<-minimax_obj(x = mst122,
+                           multiple_terms = list(abs_obj1,abs_obj2,abs_obj3),
+                           strategy_args = list(mode = "one_dev"))
+```
+
+## Case 1: 
+
+In addition to the existing requirement limiting TEI items to at most two per pathway, a new specification requiring at least one TEI item per module is introduced, which leads to infeasibility.
+
+```{r,eval=FALSE}
+mst_tei_new<-test_itemcat_con(x = mst122,attribute = "itemtype",cat_levels = "TEI",
+                              operator = ">=",target_num = 1,which_module = 1:5)
+new_constraint_list<-constraint_list
+new_constraint_list[[length(constraint_list)+1]]<-mst_tei_new
+case1_model<-onepanel_spec(x = mst122,
+                           constraints = new_constraint_list,
+                           objective = unary_minimax)
+# \dontrun{
+# ### Step 5: Execute assembly via solver
+# case1_result<-solve_model(model_spec = case1_model,
+#                           solver = "HiGHS",check_feasibility = FALSE,
+#                           time_limit = 5*60)
+# ### Step 6: Diagnose infeasible model
+# 
+# case1_singleblock<-check_singleblock_feasibility(model_spec = case1_model,
+#                                                  solver = "HiGHS",
+#                                                  time_limit = 60)
+# case1_TEIcomblock<-check_comblock_feasibility(model_spec = case1_model,
+#                                               con_blocks = c(5,28),
+#                                               solver = "HiGHS",
+#                                               time_limit = 60)
+# case1_resolve<-solve_with_slack(model_spec = case1_model,
+#                                 cat_penalty = 100,quant_penalty = 10,
+#                                 solver = "HiGHS",time_limit = 5*60)
+# }
+```
+
+```{r,echo=FALSE}
+case1_singleblock <- data.frame(
+  Requirement = c(
+    "Item count from TEI",
+    "Sum of time",
+    "Sum of time",
+    "Sum of iif(theta=-1.15)",
+    "Sum of iif(theta=-0.67)",
+    "Sum of iif(theta=-0.32)",
+    "Sum of iif(theta=0.32)",
+    "Sum of iif(theta=0.67)",
+    "Sum of iif(theta=1.15)",
+    "Stimulus count from text-based/graphic-based",
+    "Stimulus count from text-based",
+    "Stimulus count from graphic-based",
+    "Item count from content 1/content 2/content 3/content 4",
+    "Item count from content 1/content 2/content 3/content 4",
+    "Item count from dok 1/dok 2/dok 3",
+    "Item count from dok 1/dok 2/dok 3",
+    "Sum of difficulty",
+    "Sum of difficulty",
+    "Within-stimulus item count",
+    "Within-stimulus item count",
+    "Within-stimulus item count from TEI",
+    "Enemy item exclusion",
+    "Quantitative attribute per stimulus",
+    "Item count from TEI",
+    "Core set: (MST structure) Number of items in each module",
+    "Core set: (MST structure) RDP",
+    "Core set: (MST structure) RDP",
+    "Core set: Item exposure control within a panel",
+    "Core set: Sum of iif(theta=-1)",
+    "Core set: Sum of iif(theta=0)",
+    "Core set: Sum of iif(theta=1)"
+  ),
+  Attribute = c(
+    "itemtype","time","time",
+    "iif(theta=-1.15)","iif(theta=-0.67)","iif(theta=-0.32)",
+    "iif(theta=0.32)","iif(theta=0.67)","iif(theta=1.15)",
+    "stimtype","stimtype","stimtype",
+    "content","content",
+    "dok","dok",
+    "difficulty","difficulty",
+    "Stimulus item membership","Stimulus item membership",
+    "itemtype","Enemy items membership",
+    "stimcomplexity","itemtype",
+    "Item_id","IIF","IIF",
+    "Item_id (item-itself set)",
+    "iif(theta=-1)","iif(theta=0)","iif(theta=1)"
+  ),
+  Type = c(
+    "Categorical","Quantitative","Quantitative",
+    "Quantitative","Quantitative","Quantitative",
+    "Quantitative","Quantitative","Quantitative",
+    "Categorical","Categorical","Categorical",
+    "Categorical","Categorical",
+    "Categorical","Categorical",
+    "Quantitative","Quantitative",
+    "Logical","Logical",
+    "Logical","Logical",
+    "Quantitative","Categorical",
+    "Categorical","Quantitative","Quantitative",
+    "Logical",
+    "Quantitative","Quantitative","Quantitative"
+  ),
+  Application_Level = c(
+    "Pathway-level","Pathway-level","Pathway-level",
+    "Pathway-level","Pathway-level","Pathway-level",
+    "Pathway-level","Pathway-level","Pathway-level",
+    "Module-level","Module-level","Module-level",
+    "Module-level","Module-level",
+    "Module-level","Module-level",
+    "Module-level","Module-level",
+    "Module-level","Module-level",
+    "Module-level","Pathway-level",
+    "Module-level","Module-level",
+    "Module-level","Module-level","Module-level",
+    "Panel-level",
+    "Module-level","Module-level","Module-level"
+  ),
+  Operator = c(
+    "(max)","(min)","(max)",
+    "(min)","(min)","(min)",
+    "(min)","(min)","(min)",
+    "(exact)","(exact)","(exact)",
+    "(min)","(max)",
+    "(min)","(max)",
+    "(min)","(max)",
+    "(exact)","(range)",
+    "(max)","(max)",
+    "(range)","(min)",
+    "(exact)","(range)","(range)",
+    "(max)",
+    "Absolute objective","Absolute objective","Absolute objective"
+  ),
+  Num_Constraints = c(
+    4,4,4,2,2,2,2,2,2,
+    2,2,2,
+    20,20,
+    15,15,
+    4,4,
+    30,240,
+    120,40,
+    240,5,
+    5,2,2,
+    1000,
+    2,2,2
+  ),
+  Source = c(rep("Constraint",28), rep("Objective",3)),
+  Status = rep("OPTIMAL",31),
+  stringsAsFactors = FALSE
+)
+
+kable(case1_singleblock,
+      booktabs = TRUE,
+      longtable = TRUE,
+      caption = "Case 1: Infeasibility check for each specification") |>
+  kable_styling(
+    latex_options = c("hold_position"),
+    full_width = FALSE,
+    font_size = 10,
+    position = "center") |>
+  column_spec(1, width = "5cm") |>
+  column_spec(2, width = "2cm") |>
+  column_spec(3, width = "2cm") |>
+  column_spec(4, width = "2cm") |>
+  column_spec(5, width = "2cm") |>
+  column_spec(6, width = "2cm") |>
+  column_spec(7, width = "2cm") |>
+  column_spec(8,width = "2cm")
+```
+
+The feasibility check conducted via `check_comblock_feasibility()` indicates that the combination of "Item count from TEI (pathway-level)" and "Item count from TEI (module-level)" constraints is infeasible, as the two specifications impose incompatible requirements on TEI item allocation.
+
+By applying `solve_with_slack()` with `cat_penalty = 100` and `quant_penalty = 10`, the previously infeasible model becomes solvable under a relaxed formulation. Using HiGHS, the optimal solution to the relaxed model was obtained in 6.71 seconds. The results indicate that the "Item count from TEI (module-level)" constraint was relaxed to restore feasibility: no TEI items were assigned to the S2E, S2H, S3E, or S3H modules.
+
+## Case 2: 
+
+The existing requirements include: the TIF values must be at least 10 at $\theta = (-1.15,-0.67,-0.32)$ for the easier pathways (S1R–S2E–S3E and S1R–S2H–S3E) and the TIF values must be at least 10 at $\theta = (0.32,0.67,1.15)$ for the harder pathways (S1R–S2E–S3H and S1R–S2H–S3H). If the required minimum TIF value is increased from 10 to 30, the model becomes infeasible. This infeasibility arises because the specified target TIF levels exceed what can be achieved given the characteristics and information capacity of the available item pool.
+
+```{r,eval=FALSE}
+new_mst_tif_low1<-test_itemquant_con(x = mst122,
+                                     attribute = "iif(theta=-1.15)",
+                                     operator = ">=",
+                                     target_value = 30,
+                                     which_pathway = 1:2)
+new_mst_tif_low2<-test_itemquant_con(x = mst122,
+                                     attribute = "iif(theta=-0.67)",
+                                     operator = ">=",
+                                     target_value = 30,
+                                     which_pathway = 1:2)
+new_mst_tif_low3<-test_itemquant_con(x = mst122,
+                                     attribute = "iif(theta=-0.32)",
+                                     operator = ">=",
+                                     target_value = 30,
+                                     which_pathway = 1:2)
+new_mst_tif_high1<-test_itemquant_con(x = mst122,
+                                      attribute = "iif(theta=0.32)",
+                                      operator = ">=",
+                                      target_value = 30,
+                                      which_pathway = 3:4)
+new_mst_tif_high2<-test_itemquant_con(x = mst122,
+                                      attribute = "iif(theta=0.67)",
+                                      operator = ">=",
+                                      target_value = 30,
+                                      which_pathway = 3:4)
+new_mst_tif_high3<-test_itemquant_con(x = mst122,
+                                      attribute = "iif(theta=1.15)",
+                                      operator = ">=",
+                                      target_value = 30,
+                                      which_pathway = 3:4)
+
+new_constraint_list<-list(mst_structure,
+                          mst_noreuse,
+                          mst_tei,mst_time,
+                          new_mst_tif_low1,new_mst_tif_low2,new_mst_tif_low3,
+                          new_mst_tif_high1,new_mst_tif_high2,new_mst_tif_high3,
+                          mst_stimtype_s1,mst_stimtype_s2,mst_stimtype_s3,
+                          mst_content,mst_dok,mst_meandiff,
+                          mst_stimitem_s1,mst_stimitem_s2_s3,
+                          mst_stimitemtype,
+                          mst_noenemy,
+                          mst_stimcomplexity)
+case2_model<-onepanel_spec(x = mst122,
+                           constraints = new_constraint_list,
+                           objective = unary_minimax)
+# \dontrun{
+# ### Step 5: Execute assembly via solver
+# case2_result<-solve_model(model_spec = case2_model,
+#                           solver = "HiGHS",check_feasibility = FALSE,
+#                           time_limit = 5*60)
+# ### Step 6: Diagnose infeasible model
+# case2_singleblock<-check_singleblock_feasibility(model_spec = case2_model,
+#                                                  solver = "HiGHS",
+#                                                  time_limit = 60)
+#}
+```
+
+```{r,echo=FALSE}
+case2_singleblock <- data.frame(
+  Requirement = c(
+    "Item count from TEI",
+    "Sum of time",
+    "Sum of time",
+    "Sum of iif(theta=-1.15)",
+    "Sum of iif(theta=-0.67)",
+    "Sum of iif(theta=-0.32)",
+    "Sum of iif(theta=0.32)",
+    "Sum of iif(theta=0.67)",
+    "Sum of iif(theta=1.15)",
+    "Stimulus count from text-based/graphic-based",
+    "Stimulus count from text-based",
+    "Stimulus count from graphic-based",
+    "Item count from content 1/content 2/content 3/content 4",
+    "Item count from content 1/content 2/content 3/content 4",
+    "Item count from dok 1/dok 2/dok 3",
+    "Item count from dok 1/dok 2/dok 3",
+    "Sum of difficulty",
+    "Sum of difficulty",
+    "Within-stimulus item count",
+    "Within-stimulus item count",
+    "Within-stimulus item count from TEI",
+    "Enemy item exclusion",
+    "Quantitative attribute per stimulus",
+    "Core set: (MST structure) Number of items in each module",
+    "Core set: (MST structure) RDP",
+    "Core set: (MST structure) RDP",
+    "Core set: Item exposure control within a panel",
+    "Core set: Sum of iif(theta=-1)",
+    "Core set: Sum of iif(theta=0)",
+    "Core set: Sum of iif(theta=1)"
+  ),
+  Attribute = c(
+    "itemtype","time","time",
+    "iif(theta=-1.15)","iif(theta=-0.67)","iif(theta=-0.32)",
+    "iif(theta=0.32)","iif(theta=0.67)","iif(theta=1.15)",
+    "stimtype","stimtype","stimtype",
+    "content","content",
+    "dok","dok",
+    "difficulty","difficulty",
+    "Stimulus item membership","Stimulus item membership",
+    "itemtype","Enemy items membership",
+    "stimcomplexity",
+    "Item_id","IIF","IIF",
+    "Item_id (item-itself set)",
+    "iif(theta=-1)","iif(theta=0)","iif(theta=1)"
+  ),
+  Type = c(
+    "Categorical","Quantitative","Quantitative",
+    "Quantitative","Quantitative","Quantitative",
+    "Quantitative","Quantitative","Quantitative",
+    "Categorical","Categorical","Categorical",
+    "Categorical","Categorical",
+    "Categorical","Categorical",
+    "Quantitative","Quantitative",
+    "Logical","Logical",
+    "Logical","Logical",
+    "Quantitative",
+    "Categorical","Quantitative","Quantitative",
+    "Logical",
+    "Quantitative","Quantitative","Quantitative"
+  ),
+  Application_Level = c(
+    "Pathway-level","Pathway-level","Pathway-level",
+    "Pathway-level","Pathway-level","Pathway-level",
+    "Pathway-level","Pathway-level","Pathway-level",
+    "Module-level","Module-level","Module-level",
+    "Module-level","Module-level",
+    "Module-level","Module-level",
+    "Module-level","Module-level",
+    "Module-level","Module-level",
+    "Module-level","Pathway-level",
+    "Module-level",
+    "Module-level","Module-level","Module-level",
+    "Panel-level",
+    "Module-level","Module-level","Module-level"
+  ),
+  Operator = c(
+    "(max)","(min)","(max)",
+    "(min)","(min)","(min)",
+    "(min)","(min)","(min)",
+    "(exact)","(exact)","(exact)",
+    "(min)","(max)",
+    "(min)","(max)",
+    "(min)","(max)",
+    "(exact)","(range)",
+    "(max)","(max)",
+    "(range)",
+    "(exact)","(range)","(range)",
+    "(max)",
+    "Absolute objective","Absolute objective","Absolute objective"
+  ),
+  Num_Constraints = c(
+    4,4,4,2,2,2,2,2,2,
+    2,2,2,
+    20,20,
+    15,15,
+    4,4,
+    30,240,
+    120,40,
+    240,
+    5,2,2,
+    1000,
+    2,2,2
+  ),
+  Source = c(rep("Constraint",27), rep("Objective",3)),
+  Status = c(
+    "OPTIMAL","OPTIMAL","OPTIMAL",
+    rep("INFEASIBLE",6),
+    rep("OPTIMAL",21)
+  ),
+  stringsAsFactors = FALSE
+)
+
+kable(case2_singleblock,
+      booktabs = TRUE,
+      longtable = TRUE,
+      caption = "Case 2: Infeasibility check for each specification") |>
+  kable_styling(
+    latex_options = c("hold_position"),
+    full_width = FALSE,
+    font_size = 10,
+    position = "center") |>
+  column_spec(1, width = "5cm") |>
+  column_spec(2, width = "2cm") |>
+  column_spec(3, width = "2cm") |>
+  column_spec(4, width = "2cm") |>
+  column_spec(5, width = "2cm") |>
+  column_spec(6, width = "2cm") |>
+  column_spec(7, width = "2cm") |>
+  column_spec(8,width = "2cm")
+```
+
+By applying `solve_with_slack()` with `cat_penalty = 100` and `quant_penalty = 10`, the previously infeasible model becomes solvable under a relaxed formulation. Using HiGHS, the optimal solution to the relaxed model was obtained in 3.46 seconds. The results show that the minimum TIF requirement of 30 cannot be satisfied. The realized TIF values range from 13.5 to 20.8, indicating that the information constraints are binding in a way that prevents simultaneous satisfaction of other requirements. In addition, the absolute deviation between the realized mean difficulty levels for S2E and S3E and the target mean difficulty level (-0.5) exceeds 0.05.
+
+If the mean difficulty requirement must be strictly enforced (i.e., not relaxed), test developers may consider lowering the minimum TIF threshold to a value between 10 (for which the original model yields an optimal solution) and 13 (the lowest realized TIF under the relaxed solution). The appropriate adjustment can be systematically determined using the `check` data frame returned by `solve_model()` or `solve_with_slack()`,which provides detailed diagnostic information about constraint satisfaction and deviations.
+
+When the minimum TIF threshold is set to 13.5, the model yields an optimal solution (42.01 seconds using HiGHS). However, obtaining an optimal solution does not necessarily guarantee adequate measurement precision. Therefore, after assembling panels—whether optimal or merely feasible—it is recommended to conduct additional evaluation, such as analytical precision assessment or simulation studies, to verify the measurement performance of the assembled panels.
+
+## Case 3
+
+Five parallel MST panels are assembled using the same set of specifications for each panel. Two solution-level requirements are imposed: (1) stimuli must be unique across panels, and (2) each item may be selected at most twice. Under these specifications, the model becomes infeasible (HiGHS returns Infeasible in 0.39 seconds).
+
+```{r,eval=FALSE}
+onepanel<-onepanel_spec(x = mst122,
+                        constraints = constraint_list,
+                        objective = unary_minimax)
+num_panels<-5
+mst_unique_stim<-solution_stimcount_con(x = mst122,operator = "=",
+                                        target_num = 4*num_panels)
+case3_model<-multipanel_spec(x = mst122,panel_model = onepanel,
+                             solution_con = list(mst_unique_stim),
+                             num_panels = num_panels,global_max_use = 2)
+# \dontrun{
+# ### Step 5: Execute assembly via solver
+# case3_result<-solve_model(model_spec = case3_model,
+#                           solver = "HiGHS",check_feasibility = FALSE,
+#                           time_limit = 60*5)
+#}
+```
+
+**(1) Adjusting the number of panels**
+
+Keeping all other specifications unchanged, the number of parallel panels is reduced from five to four. Under this revised setting, feasible solutions are obtained within four minutes. Constraint satisfaction is verified using the `check` data frame returned by `solve_model()`, which shows that all constraints are satisfied. The most binding constraint corresponds to the absolute objective at $\theta = 1$ for the routing modules.
+
+**(2) Possible approaches to restore feasibility**
+
+- Increase allowable item exposure for items providing high information at $\theta = 1$.
+
+- Reduce the target absolute TIF requirements at $\theta = 1$ for the routing modules.
+
+- Relax stimulus uniqueness constraints by allowing stimuli to be selected across multiple panels (i.e., loosen the minimum and maximum limits on unique stimuli across panels).
+
+- Expand the item pool by adding additional items or stimuli.
+
+## Suggestions
+
+When an `mstATA_model` is infeasible, several diagnostic and remedial strategies can be employed.
+
+###  Assess Item Pool Sufficiency
+
+Evaluate whether the item pool contains adequate items with the required content, statistical, or categorical attributes. Examine attribute distributions to detect shortages or strong correlations that may make certain specifications impossible to satisfy. When deficiencies are identified, the item pool should be replenished or the maximum usage of rare items increased. The more closely the test specifications align with the structure of the item bank, the higher the likelihood of feasibility.
+
+### Check Residual Variables for A Simplified MST Design
+
+Reducing the number of panels or modules per panel lowers the model's complexity and increases the chance of feasibility—especially when item resources are limited. In the `mstATA` package, feasible models can produce residual variables that quantify deviations between achieved and required constraint values. Solving a simplified problem and inspecting the residual values helps identify which constraints are most restrictive, guiding targeted adjustments to specifications or constraint bounds.
+
+### Replace Equality Constraints with Small Ranges
+
+Constraints expressed as strict equalities (e.g., exact averages or totals) drastically reduce the feasible region and often cause infeasibility. Wherever possible, replace equality constraints with narrow inequality bounds (e.g., $\pm 1$ or $\pm 2$ items). The test length constraint is usually the only exception that must remain exact.
+
+### Check for Correctness and Consistency
+
+Ensure that each constraint is correctly formulated and defines a feasible region. In the `mstATA` package, the `check_singleblock_feasibility()` function is used to check the feasibility for each specification. Specifically, a core set of constraints (objective-related constraints and essential MST structure constraints) is always included. Each remaining constraint block generated by each specification is then tested individually by solving a reduced model that contains the core constraints plus exactly one additional constraint block. If the model is feasible, examine the residual variables to ensure that each constraint functions as intended and that constraints imposed at different hierarchical levels—module, pathway, panel, and solution—are logically consistent; specifically, for the same specification, the realized constraint value at a lower level should not exceed that at a higher level.
+
+### Perform Incremental Constraint Testing
+
+Once individual specifications have been verified, the next step is to identify which specific combinations of specifications lead to infeasibility. This process begins by establishing a priority ordering of specifications based on their relative importance, as determined by subject matter experts and test development teams. Two complementary diagnostic strategies—additive and subtractive methods [@spaccapanico2020automated]—can then be applied to isolate problematic constraints.
+
+In the additive approach (ADD), the analysis starts with an unconstrained model that includes only a core set of requirements, such as objective-related constraints and essential MST structural constraints. Additional constraints are then introduced sequentially, in order of decreasing importance, until infeasibility is encountered. In the subtractive approach (SUB), the process begins with the full model containing all constraints, and constraints are removed one at a time, starting with the least important, until feasibility is restored.
+
+In the `mstATA` package, both approaches can be implemented via `check_comblock_feasibility()` function, which evaluates the feasibility of models constructed from multiple specifications.
+
+### Reformulate Using Goal Programming and Slack Varaibles
+
+The `solve_with_slack` function is designed to recover feasibility for an infeasible `mstATA_model` by selectively relaxing non-core constraint blocks through the introduction of slack variables with user-specified penalties. Core constraint blocks include objective-related constraints, essential MST structure constraints (e.g., module- and pathway-level item count constraints, optional TIF constraints for routing decision points), logical constraints (such as enemy relationships, item–stimulus grouping relationships, and within-panel item exposure control), as well as equality constraints (i.e., constraints with = operators). All other constraint blocks are treated as non-core and are eligible for relaxation.
+
+For each relaxable constraint block, a single continuous slack variable is introduced to permit controlled violations of the corresponding specifications. Slack variables for categorical constraints receive higher penalties than those for quantitative constraints, reflecting their greater importance in the test assembly process. When an `mstATA_model` assembles multiple panels and security is the top priority, the penalty for reusing items across panels should be increased accordingly. In all other cases, the penalty hierarchy should assign the highest weight to categorical requirements, followed by quantitative requirements, with the lowest penalty applied to across panel item reuse.
+
+The reformulated objective function consists of two components: (a) the original objective function and (b) a weighted penalty term that captures the magnitude of violations in non-core constraint blocks. When the original objective is a maximization problem, it is multiplied by −1 so that the reformulated objective remains a minimization problem. The new objective direction is to minimize the reformulated objective function. 
+
+This slack-based formulation enables the model to satisfy all core specifications while restoring feasibility by allowing limited violations of lower-priority requirements. As discussed in the Translate to Linear Model section, the number of constraint rows generated by a specification may depend on factors such as the number of specified categories and the number of modules or pathways involved. Accordingly, users may control the size and granularity of constraint blocks by invoking the same constraint-generating function multiple times to construct a specification.
+

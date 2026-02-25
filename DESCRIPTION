@@ -1,0 +1,43 @@
+Package: mstATA
+Title: Automated Test Assembly for Multistage Tests Using Mixed-Integer Linear Programming
+Version: 0.0.0.9000
+Authors@R: person("Hong","Chen", email="hongchen030@gmail.com", role = c("aut", "cre"))
+Description: Provides sparse, mixed-integer linear programming (MILP) model
+    builders and solvers for automated test assembly (ATA) in multistage tests.
+    Supports bottom-up, top-down, and hybrid strategies; enemy exclusions (enemy items, enemy stimuli); stimulus all-in/all-out or
+    partial selection; item-usage control; single objective or multiple 
+    objectives (weighted-sum, capped-maximin, maximin,goal programming and minimax); diagnosis of infeasible optimization models and their reformulation to resolve infeasibility through systematic identification of its causes.
+License: MIT + file LICENSE
+Encoding: UTF-8
+Roxygen: list(markdown = TRUE)
+RoxygenNote: 7.3.2
+Depends: R (>= 4.0)
+LazyData: true
+Config/testthat/edition: 3
+Imports:
+     stats,
+     utils,
+     tidyr,
+     dplyr,
+     rlang,
+     methods,
+     Matrix,
+     ggplot2
+Suggests:
+    gurobi,
+    highs,
+    lpSolveAPI,
+    Rglpk,
+    Rsymphony,
+    testthat (>= 3.0.0),
+    irtQ,
+    mstR,
+    numDeriv,
+    knitr,
+    rmarkdown
+VignetteBuilder: knitr
+URL: https://github.com/Hongchen030/mstATA-package
+BugReports: https://github.com/Hongchen030/mstATA-package
+SystemRequirements: 
+    Gurobi Optimizer (>= 9.5) with a valid license for optional 'gurobi' backend.
+   
