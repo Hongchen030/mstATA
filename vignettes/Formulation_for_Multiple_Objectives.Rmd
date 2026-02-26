@@ -136,7 +136,7 @@ This is the simplest and most flexible multi-objective approach. It is appropria
 
 **When to use**
 
-- You want to protect the lowest information point across a set of θ values.
+- You want to protect the lowest information point across a set of $\theta$ values.
 - You want balanced precision across ability regions.
 - You do not want the solution to concentrate information only where it is easy to achieve.
 - Typical MST use case: Maximize the minimum TIF across a grid of $\theta$ values. This ensures no ability region is severely under-served.

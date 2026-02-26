@@ -1,147 +1,75 @@
 ---
-title: "mstATA"
 output: github_document
 ---
 
 <!-- README.md is generated from README.Rmd. Please edit that file -->
 
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  fig.path = "man/figures/README-",
+  out.width = "100%"
+)
+```
+
 # mstATA
 
-`mstATA` is an R package for **optimization-based multistage test (MST) assembly**.
-The design philosophy of `mstATA` emphasizes transparency, flexibility, and theoretical grounding in automated multistage test (MST) assembly. The package provides a structured framework for representing MST designs, specifications, mixed-integer linear programming (MILP) models, and assembled panels, enabling users to express complex test design requirements in a clear and reproducible manner.
+<!-- badges: start -->
+<!-- badges: end -->
 
----
-
-## Overview
-
-A central conceptual feature of `mstATA` is the distinction between attribute definition and requirement enforcement. Test specifications are characterized by their type, the level at which attributes are defined (i.e., which decision variables are involved), and the level at which requirements are enforced (i.e., where constraints are applied). This distinction guides users in selecting appropriate functions to translate design specifications into linear constraints.
-
-The package enforces a set of consistency principles across hierarchical levels, including item–stimulus consistency and the linkage between item–module–panel selection variables and solution-level item indicators. Optional use of item–module eligibility sets is supported as a design strategy for reducing the number of decision variables in large-scale assembly problems.
-
-`mstATA` also supports both single-panel and multi-panel MST assembly, with particular emphasis on simultaneous assembly strategies. Objective-function formulation is handled flexibly, including support for multiple objectives and strategies for managing trade-offs among competing goals.
-
-Finally, recognizing that realistic MST specifications may not be feasible on the first attempt, the package includes tools for infeasibility diagnosis and model reformulation, encouraging iterative refinement of test designs. Together, these principles form the conceptual foundation of the `mstATA` assembly workflow.
+The goal of mstATA is to ...
 
 ## Installation
 
-You can install the development version of mstATA from [GitHub](https://github.com/) with:
+You can install the development version of **mstATA** from [GitHub](https://github.com/) using `pak`:
 
 ```{r}
-install.packages("mstATA")
-pak::pak("Hongchen030/mstATA-package")
+# install.packages("pak")
+pak::pak("Hongchen030/mstATA")
 ```
 
-
-## Key Features
-
-`mstATA` supports (a) flexible specification of constraints across multiple hierarchical levels, including modules, pathways, panels, and solution-level; (b) partial selection of items associated with the same stimulus, allowing item-stimulus dependencies to be modeled without forcing all-in/all-out inclusion; (c) flexible formulation of single or multiple objectives, including absolute and relative objectives; (d) simultaneous assembly of multiple parallel MST panels with global control over exposure and content balancing; and (e) diagnostic feedback and reformulation tools for situations in which the optimization problem becomes infeasible or reaches time limit. In addition to MST panel assembly, `mstATA` incorporates analytic methods for evaluating MST performance, such as measurement precision and classification accuracy.
-
-## A Minimal Example
-
-This example mirrors a published MST ATA example from the `eatATA` package,
-using the same item pool and specifications for ease of comparison.
-
-The goal is to assemble a two-stage multi-stage test with one routing module in the first
-stage and three modules in the second stage. 
-
-Specification: 
-
-(1) the TIF of the first-stage module is required to be relatively maximized at between $\theta = -1$ and $\theta = 1$
-
-(2) the TIFs of the second-stage modules are required to be relatively maximized at $\theta = -1, 0, 1$ respectively.
-
-(3) the number of item per content category in the routing module should be larger than 4,4,3,4,4,5 for category 1-6. the number of item per content category in each of the second-stage modules should be larger than 3,3,2,3,3,4 for category 1-6.
-
-(4) no item overlap
-
-(5) for the first-stage module the test length should be 30 items and for each of the second-stage modules, the test length should be 20 items.
-
+Alternatively, you can use `remotes`:
 
 ```{r}
-# Step 1: Prepare the item pool;
-data("items_diao2")
-items_diao2[,"model"]<-"3PL"
-theta_values<-c(-1,0,1)
-items_diao2[,paste0("iif(theta=",theta_values,")")]<-compute_iif(items_diao2,
-                                                                 item_par_cols = list("3PL"=c("a","b","c")),
-                                                                 theta = theta_values,model_col = "model",
-                                                                 D = 1.7)
-content_categories<-levels(items_diao2$Category)
-# Step 2: Specify the MST Structure
-mst_13 <- mst_design(itempool = items_diao2,item_id_col = "item",
-                         design = "1-3",module_length = c(30,20,20,20))
-
-# Step 3: Identify hierarchical requirements
-
-### Specification 1-3 and 5 are requirements for each module. Specification 4 is a requirement at the Panel-level across all modules.
-
-# Step 4: Translate specifications 
-spec1_1<-objective_term(x = mst_13,attribute = "iif(theta=-1)",applied_level = "Module-level",which_module = 1,sense = "max")
-spec1_2<-objective_term(x = mst_13,attribute = "iif(theta=0)",applied_level = "Module-level",which_module = 1,sense = "max")
-spec1_3<-objective_term(x = mst_13,attribute = "iif(theta=1)",applied_level = "Module-level",which_module = 1,sense = "max")
-spec2_1<-objective_term(x = mst_13,attribute = "iif(theta=-1)",applied_level = "Module-level",which_module = 2,sense = "max")
-spec2_2<-objective_term(x = mst_13,attribute = "iif(theta=0)",applied_level = "Module-level",which_module = 3,sense = "max")
-spec2_3<-objective_term(x = mst_13,attribute = "iif(theta=1)",applied_level = "Module-level",which_module = 4,sense = "max")
-spec1_obj<-maximin_obj(x = mst_13,multiple_terms = list(spec1_1,spec1_2,spec1_3),
-                       strategy_args = list(delta = 0.5))
-spec2_obj<-maximin_obj(x = mst_13,multiple_terms = list(spec2_1,spec2_2,spec2_3),
-                       strategy_args = list(delta = 0.5))
-obj<-weighted_sum_obj(x = mst_13,multiple_terms = list(spec1_obj,spec2_obj),
-                        strategy_args = list(weights = c(1,1)))
-spec3_1<-test_itemcat_con(x = mst_13,attribute = "Category",cat_levels = content_categories,operator = ">=",
-                        target_num = c(4,4,3,4,4,5),which_module = 1)
-spec3_2<-test_itemcat_con(x = mst_13,attribute = "Category",cat_levels = content_categories,operator = ">=",
-                          target_num = c(3,3,2,3,3,4),which_module = 2:4)
-spec4<-panel_itemreuse_con(x = mst_13,overlap = FALSE)
-spec5<-test_itemcount_con(x = mst_13)
-ata_spec<-onepanel_spec(x = mst_13,constraints = list(spec3_1,spec3_2,spec4,spec5),
-                        objective = obj)
-# Step 5: Execute assembly via solver
-ata_result<-solve_model(model_spec = ata_spec,solver = "GLPK",
-                        check_feasible = FALSE,time_limit = 60)
-
-# Step 6: Diagnose infeasible model
-### Not required, model is non infeasible
-
-# Step 7: Evaluate panel
-ata_panel<-assembled_panel(x = mst_13,result = ata_result)
-rbind(report_test_itemquant(assembled_panel = ata_panel,attribute = "iif(theta=-1)",statistic = "sum",
-                            which_module = c(1,2)),
-      report_test_itemquant(assembled_panel = ata_panel,attribute = "iif(theta=0)",statistic = "sum",
-                            which_module = c(1,3)),
-      report_test_itemquant(assembled_panel = ata_panel,attribute = "iif(theta=1)",statistic = "sum",
-                            which_module = c(1,4)))
-report_test_itemcat(assembled_panel = ata_panel,attribute = "Category",cat_levels = content_categories,
-                    which_module = 1:4)
-plot_panel_tcc(assembled_panel = ata_panel,item_par_cols = list("3PL"=c("a","b","c")),
-               model_col = "model",theta = seq(-3,3,0.1),unit = "module")
-plot_panel_tcc(assembled_panel = ata_panel,item_par_cols = list("3PL"=c("a","b","c")),
-               model_col = "model",theta = seq(-3,3,0.1),unit = "pathway")
-plot_panel_tif(assembled_panel = ata_panel,item_par_cols = list("3PL"=c("a","b","c")),
-               model_col = "model",theta = seq(-3,3,0.1),unit = "module")
-plot_panel_tif(assembled_panel = ata_panel,item_par_cols = list("3PL"=c("a","b","c")),
-               model_col = "model",theta = seq(-3,3,0.1),unit = "pathway")
+# install.packages("remotes")
+remotes::install_github("Hongchen030/mstATA")
 ```
 
+`mstATA` supports multiple mixed-integer programming solvers, including:
 
-## Documentation
+Gurobi – requires separate installation and a valid license.
+Installation instructions are available here:
+https://cran.r-project.org/web/packages/prioritizr/vignettes/gurobi_installation_guide.html
+Gurobi requires a valid license. However, free academic licenses are available for qualified students and researchers through the Gurobi Academic Program.
 
-Detailed documentation and worked examples are provided in the package vignettes:
+HiGHS – available on CRAN via install.packages("highs")
+
+GLPK (via Rglpk) – available on CRAN via install.package("Rglpk")
+
+SYMPHONY (via Rsymphony) – available on CRAN via install.package("Rsymphony")
+
+lpSolve (via lpSolveAPI) – available on CRAN via install.package("lpSolveAPI")
+
+
+## Vignettes
+
+The package includes several vignettes:
+
+- **Getting Started with mstATA** – complete end-to-end workflow.
+- **MST Assembly Examples: Bottom-Up, Top-Down, and Hybrid Strategies** – bottom-up, top-down, and extended-hybrid strategies.
+- **Stimulus-Based Assessment in mstATA: Conditional Item Selection** – conditional item selection with stimulus constraints.
+- **Formulation for Multiple Objectives** – multi-objective optimization strategies and evaluation.
+- **Detecting and Resolving Infeasibility** - how to deal with infeasibility.
+
+To browse available vignettes:
 
 ```{r}
 browseVignettes("mstATA")
 ```
 
-Function-level documentation is available via standard R help pages.
-
 ## Citation
 
-If you use `mstATA` in academic work, please cite it as:
+If you use `mstATA` in research, please cite:
 
-```{r}
-citation("mstATA")
-```
-
-## License
-
-This package is released under the MIT license.
+Chen, H. (2026). mstATA: An R Package for IRT-Based Multistage Test Assembly.

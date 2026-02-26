@@ -142,11 +142,11 @@ the integrals \eqn{\int g(\theta)\,\cdot\, d\theta}.
 \references{
 Rudner, L. M. (2000). Computing the expected proportions of misclassified examinees.
 \emph{Practical Assessment, Research, and Evaluation}, 7(1).
-\href{https://doi.org/10.7275/an9m-2035}{doi:10.7275/an9m-2035}
+{doi:10.7275/an9m-2035}
 
 Rudner, L. M. (2005). Expected classification accuracy.
 \emph{Practical Assessment, Research, and Evaluation}, 10(1).
-\href{https://doi.org/10.7275/56a5-6b14}{doi:10.7275/56a5-6b14}
+{doi:10.7275/56a5-6b14}
 }
 \seealso{
 \code{\link[=gen_weight]{gen_weight()}},

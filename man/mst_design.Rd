@@ -172,8 +172,7 @@ mst_design(itempool = mini_itempool,design = "1-3-3",
 }
 \references{
 Xiong, X. (2018). A hybrid strategy to construct multistage adaptive tests.
-\emph{Applied Psychological Measurement}, 42(8), 630–643.
-\url{https://doi.org/10.1177/0146621618762739}
+\emph{Applied Psychological Measurement}, 42(8), 630–643.{doi:10.1177/0146621618762739}
 }
 \seealso{
 \code{\link{create_pathways}},

@@ -7,53 +7,76 @@
 
 <!-- badges: end -->
 
-The goal of mstATA is to provide an automated test assembly tool in
-multistage testing. It supports the assembly of single/multiple
-multistage testing panels using mixed-integer linear programming. Test
-specifications can be put on item-level, itemset-level, module-level,
-pathway-level and panel-level. The objective functions include relative
-target TIF (maximin, capped maximin) and the absolute target TIF (unary
-minimax, binary minimax).
+The goal of mstATA is to …
 
 ## Installation
 
-You can install the development version of mstATA from
-[GitHub](https://github.com/) with:
+You can install the development version of **mstATA** from
+[GitHub](https://github.com/) using `pak`:
 
 ``` r
 # install.packages("pak")
-pak::pak("Hongchen030/mstATA-package")
+pak::pak("Hongchen030/mstATA")
+#> ! Using bundled GitHub PAT. Please add your own PAT using `gitcreds::gitcreds_set()`.
+#> ✔ Updated metadata database: 7.78 MB in 10 files.
+#> ℹ Updating metadata database✔ Updating metadata database ... done
+#>  
+#> → Will install 1 package.
+#> → Will download 1 package with unknown size.
+#> + mstATA   0.0.0.9000 👷🏿‍♂️🔧 ⬇ (GitHub: ab1075d)
+#> ℹ Getting 1 pkg with unknown size
+#> ✔ Got mstATA 0.0.0.9000 (source) (791.58 kB)
+#> ℹ Packaging mstATA 0.0.0.9000
+#> ✔ Packaged mstATA 0.0.0.9000 (1.2s)
+#> ℹ Building mstATA 0.0.0.9000
+#> ✔ Built mstATA 0.0.0.9000 (3.2s)
+#> ✔ Installed mstATA 0.0.0.9000 (github::Hongchen030/mstATA@ab1075d) (22ms)
+#> ✔ 1 pkg + 33 deps: kept 15, added 1, dld 1 (NA B) [18.7s]
 ```
 
-## Example
-
-This is a basic example which shows you how to solve a common problem:
+Alternatively, you can use `remotes`:
 
 ``` r
-library(mstATA)
-## basic example code
+# install.packages("remotes")
+remotes::install_github("Hongchen030/mstATA")
+#> Skipping install of 'mstATA' from a github remote, the SHA1 (ab1075dc) has not changed since last install.
+#>   Use `force = TRUE` to force installation
 ```
 
-What is special about using `README.Rmd` instead of just `README.md`?
-You can include R chunks like so:
+`mstATA` supports multiple mixed-integer programming solvers, including:
+
+- Gurobi
+- HiGHS
+- GLPK
+- Symphony
+- lpSolve
+
+Some solvers (e.g., Gurobi) require separate installation and licenses.
+
+## Vignettes
+
+The package includes several vignettes:
+
+- **Getting Started with mstATA** – complete end-to-end workflow.
+- **MST Assembly Examples: Bottom-Up, Top-Down, and Hybrid Strategies**
+  – bottom-up, top-down, and extended-hybrid strategies.
+- **Stimulus-Based Assessment in mstATA: Conditional Item Selection** –
+  conditional item selection with stimulus constraints.
+- **Formulation for Multiple Objectives** – multi-objective optimization
+  strategies and evaluation.
+- **Detecting and Resolving Infeasibility** - how to deal with
+  infeasibility.
+
+To browse available vignettes:
 
 ``` r
-summary(cars)
-#>      speed           dist       
-#>  Min.   : 4.0   Min.   :  2.00  
-#>  1st Qu.:12.0   1st Qu.: 26.00  
-#>  Median :15.0   Median : 36.00  
-#>  Mean   :15.4   Mean   : 42.98  
-#>  3rd Qu.:19.0   3rd Qu.: 56.00  
-#>  Max.   :25.0   Max.   :120.00
+browseVignettes("mstATA")
+#> No vignettes found by browseVignettes("mstATA")
 ```
 
-You’ll still need to render `README.Rmd` regularly, to keep `README.md`
-up-to-date. `devtools::build_readme()` is handy for this.
+## Citation
 
-You can also embed plots, for example:
+If you use `mstATA` in research, please cite:
 
-<img src="man/figures/README-pressure-1.png" width="100%" />
-
-In that case, don’t forget to commit and push the resulting figure
-files, so they display on GitHub and CRAN.
+Chen, H. (2026). mstATA: An R Package for IRT-Based Multistage Test
+Assembly.

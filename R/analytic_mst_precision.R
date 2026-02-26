@@ -187,7 +187,7 @@
 #'
 #' @references
 #' Lim, H., Davey, T., & Wells, C. S. (20201).A recursion-based analytical approach to evaluate the performance of MST.
-#' \emph{Journal of Educational Measurement}, 58(2), 154--178.\href{https://doi.org/10.1111/jedm.12276}{doi:10.1111/jedm.12276}
+#' \emph{Journal of Educational Measurement}, 58(2), 154--178.{doi:10.1111/jedm.12276}
 #'
 #' @export
 analytic_mst_precision<-function(design,

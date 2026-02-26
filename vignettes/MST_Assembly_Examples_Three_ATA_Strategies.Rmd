@@ -58,7 +58,12 @@ Each item includes: categorical attribute (model, content area) and continuous a
 data("Rmst_pool")
 PoolSize<-nrow(Rmst_pool)
 content_categories<-c("1","2","3","4")
+item_par_cols<-list("3PL"=c("a","b","c"),
+                    "GPCM" = c("alpha","delta1","delta2","delta3"),
+                    "GRM" = c("alpha","beta1","beta2"))
 ```
+
+## Example
 
 ###  Top-down 1-2 MST
 
@@ -68,16 +73,18 @@ As for non-statistical constraints, each route is required to have 36 3PL items,
 
 ```{r}
 ### Step 1: Prepare the Item Pool
-theta_values<-unique(c(seq(-1.64,0,length.out = 3),seq(0,1.64,length.out = 3)))
-Rmst_pool[,paste0("iif(theta=",theta_values,")")]<-compute_iif(Rmst_pool,
-                                                               item_par_cols = list("3PL"=c("a","b","c"),
-                                                                                      "GPCM" = c("alpha","delta1","delta2","delta3"),
-                                                                                      "GRM" = c("alpha","beta1","beta2")),
-                                                                theta = theta_values,model_col = "model",
-                                                                D = 1)
+theta_values<-unique(c(seq(-1.64,0,length.out = 3),
+                       seq(0,1.64,length.out = 3)))
+theta_iif<-compute_iif(Rmst_pool,
+                       item_par_cols = item_par_cols,
+                       theta = theta_values,model_col = "model",
+                       D = 1)
+Rmst_pool[,paste0("iif(theta=",theta_values,")")]<-theta_iif
+
 # check attribute availability
 item_cat_values<-vapply(content_categories,FUN = function(cat_level) 
-  get_attribute_val(Rmst_pool,attribute = "content",cat_level = cat_level), FUN.VALUE = integer(PoolSize))
+  get_attribute_val(Rmst_pool,attribute = "content",cat_level = cat_level), 
+  FUN.VALUE = integer(PoolSize))
 # number of items in each category
 apply(item_cat_values,2,sum)
 
@@ -86,47 +93,64 @@ TD_12 <- mst_design(itempool = Rmst_pool,item_id_col = "Item_id",
                      design = "1-2",rdp = list(0),pathway_length = 40)
 
 ### Step 3: Identify hierarchical requirements
-# mst structure constraints: pathway length, at least one item per module, routing decision point is 0.
+# mst structure constraints: pathway length, at least one item per module, 
+#                            routing decision point is 0.
 # item reusage: no item reuse within a panel, no item reuse across 2 panels.
-# number of items from different IRT model: each pathway has 36 3PL items, 2 GPCM items, and 2 GRM items
-# number of items from each content domain: each pathway includes 9 to 11 items in each domain.
+# num of items from different IRT model per pathway: 36 3PL items, 2 GPCM items, and 2 GRM items
+# num of items from each content domain per pathway: 9 to 11 items in each domain.
 # average response time: each pathway has 60 +/- 4 seconds per item.
-# TIF: three equal interval points in [-1.64, 0] for the route 1M-2E and over [0, 1.64] for the route 1M-2H
+# TIF: three equal interval points in [-1.64, 0] for the route 1M-2E 
+#      and in [0, 1.64] for the route 1M-2H
 
 ### Step 4: Translate specifications 
 TD12_structure<-mst_structure_con(x = TD_12)
-TD12_itemtype<-test_itemcat_con(x = TD_12,attribute = "model",cat_levels = c("3PL","GPCM","GRM"),
+TD12_itemtype<-test_itemcat_con(x = TD_12,attribute = "model",
+                                cat_levels = c("3PL","GPCM","GRM"),
                                 operator = "=",
-                                target_num = c(36,2,2),which_pathway = 1:2)
-TD12_content<-test_itemcat_range_con(x = TD_12,attribute = "content",cat_levels = content_categories,
-                                     min = 9,max = 11,which_pathway = 1:2)
-TD12_time<-test_itemquant_range_con(x = TD_12,attribute = "time",min = 56*40,max = 64*40,
+                                target_num = c(36,2,2),
+                                which_pathway = 1:2)
+TD12_content<-test_itemcat_range_con(x = TD_12,attribute = "content",
+                                     cat_levels = content_categories,
+                                     min = 9,max = 11,
+                                     which_pathway = 1:2)
+TD12_time<-test_itemquant_range_con(x = TD_12,attribute = "time",
+                                    min = 56*40,max = 64*40,
                                     which_pathway = 1:2)
 TD12_noreuse<-panel_itemreuse_con(x = TD_12,overlap = FALSE)
 TD12_obj1<-objective_term(x = TD_12,attribute = "iif(theta=-1.64)",
-                          applied_level = "Pathway-level",which_pathway = 1,sense = "max")
+                          applied_level = "Pathway-level",
+                          which_pathway = 1,sense = "max")
 TD12_obj2<-objective_term(x = TD_12,attribute = "iif(theta=-0.82)",
-                          applied_level = "Pathway-level",which_pathway = 1,sense = "max")
+                          applied_level = "Pathway-level",
+                          which_pathway = 1,sense = "max")
 TD12_obj3<-objective_term(x = TD_12,attribute = "iif(theta=0)",
-                          applied_level = "Pathway-level",which_pathway = 1,sense = "max")
+                          applied_level = "Pathway-level",
+                          which_pathway = 1,sense = "max")
 TD12_obj4<-objective_term(x = TD_12,attribute = "iif(theta=0)",
-                          applied_level = "Pathway-level",which_pathway = 2,sense = "max")
+                          applied_level = "Pathway-level",
+                          which_pathway = 2,sense = "max")
 TD12_obj5<-objective_term(x = TD_12,attribute = "iif(theta=0.82)",
-                          applied_level = "Pathway-level",which_pathway = 2,sense = "max")
+                          applied_level = "Pathway-level",
+                          which_pathway = 2,sense = "max")
 TD12_obj6<-objective_term(x = TD_12,attribute = "iif(theta=1.64)",
-                          applied_level = "Pathway-level",which_pathway = 2,sense = "max")
-TD12_obj<-capped_maximin_obj(x = TD_12,multiple_terms = list(TD12_obj1,TD12_obj2,TD12_obj3,
-                                                             TD12_obj4,TD12_obj5,TD12_obj6))
+                          applied_level = "Pathway-level",
+                          which_pathway = 2,sense = "max")
+TD12_obj<-capped_maximin_obj(x = TD_12,
+                             multiple_terms = list(TD12_obj1,TD12_obj2,TD12_obj3,
+                                                   TD12_obj4,TD12_obj5,TD12_obj6))
 TD12_onepanel<-onepanel_spec(x = TD_12,
-                             constraints = list(TD12_structure,TD12_noreuse,TD12_itemtype,TD12_content,TD12_time),
+                             constraints = list(TD12_structure,TD12_noreuse,
+                                                TD12_itemtype,TD12_content,
+                                                TD12_time),
                              objective = TD12_obj)
 TD12_model<-multipanel_spec(x = TD_12,panel_model = TD12_onepanel,
-                            num_panels = 2,global_min_use = 0,global_max_use = 1)                               
+                            num_panels = 2,
+                            global_min_use = 0,global_max_use = 1)                               
 
 # It is not executed in the vignette to avoid long build times.
 # \dontrun{
 # ### Step 5: Execute assembly via solver
-# TD12_result<-solve_model(model_spec = TD12_model,solver = "HiGHS",check_feasibility = FALSE,time_limit = 5*60)
+# TD12_result<-solve_model(model_spec = TD12_model,solver = "HiGHS",time_limit = 5*60)
 # TD12_panel<-assembled_panel(x = TD_12,result = TD12_result)
 # ### Step 6: Diagnose infeasible model
 # # There is an optimal solution. Skip this step.
@@ -141,41 +165,44 @@ data("TD12_panel")
 
 # number of items in each content domain
 report_test_itemcat(assembled_panel = TD12_panel,
-                    attribute = "content",cat_levels = content_categories,
+                    attribute = "content",
+                    cat_levels = content_categories,
                     which_pathway = 1:2)
 # number of items in each model
 report_test_itemcat(assembled_panel = TD12_panel,
-                    attribute = "model",cat_levels = c("3PL","GPCM","GRM"),
+                    attribute = "model",
+                    cat_levels = c("3PL","GPCM","GRM"),
                     which_pathway = 1:2)
 # average time in each pathway per item
-report_test_itemquant(assembled_panel = TD12_panel,attribute = "time",statistic = "average",which_pathway = 1:2)
+report_test_itemquant(assembled_panel = TD12_panel,
+                      attribute = "time",
+                      statistic = "average",
+                      which_pathway = 1:2)
 # TIF at [-1.64.0] for the route 1M-2E
 report_test_tif(assembled_panel = TD12_panel,
                 theta = seq(-1.64,0,length.out = 3),
-                item_par_cols = list("3PL"=c("a","b","c"),
-                                     "GPCM" = c("alpha","delta1","delta2","delta3"),
-                                     "GRM" = c("alpha","beta1","beta2")),
-                model_col = "model",which_pathway = 1)
+                item_par_cols = item_par_cols,
+                model_col = "model",
+                which_pathway = 1)
 # TIF at [0,1.64] for the route 1M-2H
 report_test_tif(assembled_panel = TD12_panel,
                 theta = seq(0,1.64,length.out = 3),
-                item_par_cols = list("3PL"=c("a","b","c"),
-                                     "GPCM" = c("alpha","delta1","delta2","delta3"),
-                                     "GRM" = c("alpha","beta1","beta2")),
-                model_col = "model",which_pathway = 2)
+                item_par_cols = item_par_cols,
+                model_col = "model",
+                which_pathway = 2)
 # TIF plots
 plot_panel_tif(assembled_panel = TD12_panel,
-               item_par_cols = list("3PL"=c("a","b","c"),
-                                    "GPCM" = c("alpha","delta1","delta2","delta3"),
-                                    "GRM" = c("alpha","beta1","beta2")),
-               model_col = "model",theta = seq(-3,3,0.1),unit = "pathway",mode = "within_panel")
+               item_par_cols = item_par_cols,
+               model_col = "model",
+               theta = seq(-3,3,0.1),
+               unit = "pathway",mode = "within_panel")
 # analytic evaluation
 TD12_precision<-analytic_mst_precision_items(design = "1-2",assembled_panel = TD12_panel,
-                                             item_par_cols = list("3PL"=c("a","b","c"),
-                                                                  "GPCM" = c("alpha","delta1","delta2","delta3"),
-                                                                  "GRM" = c("alpha","beta1","beta2")),
-                                             model_col = "model",theta = seq(-3,3,0.1),
-                                             range_tcc = c(-5,5),cuts = list(0),cut_scale = "theta")
+                                             item_par_cols = item_par_cols,
+                                             model_col = "model",
+                                             theta = seq(-3,3,0.1),
+                                             range_tcc = c(-5,5),
+                                             cuts = list(0),cut_scale = "theta")
 TD12_bias_CSEM_panel1<-TD12_precision$Panel_1$eval_tb
 TD12_bias_CSEM_panel2<-TD12_precision$Panel_2$eval_tb
 TD12_bias_CSEM_panel1[,"Panel"]<-"Panel_1"
@@ -209,13 +236,14 @@ In addition, each module is required to comply with the following constraints: 1
 
 ```{r}
 ### Step 1: Prepare the Item Pool
-theta_values<-unique(c(seq(-0.65,0.65,length.out = 3),seq(-1.96,-0.65,length.out = 3),seq(0.65,1.96,length.out = 3)))
-Rmst_pool[,paste0("iif(theta=",theta_values,")")]<-compute_iif(Rmst_pool,
-                                                                 item_par_cols = list("3PL"=c("a","b","c"),
-                                                                                      "GPCM" = c("alpha","delta1","delta2","delta3"),
-                                                                                      "GRM" = c("alpha","beta1","beta2")),
-                                                                 theta = theta_values,model_col = "model",
-                                                                 D = 1)
+theta_values<-unique(c(seq(-0.65,0.65,length.out = 3),
+                       seq(-1.96,-0.65,length.out = 3),
+                       seq(0.65,1.96,length.out = 3)))
+theta_iif<-compute_iif(Rmst_pool,
+                       item_par_cols = item_par_cols,
+                       theta = theta_values,model_col = "model",
+                       D = 1)
+Rmst_pool[,paste0("iif(theta=",theta_values,")")]<-theta_iif
 
 ### Step 2: Specify the MST Structure: 20 items in each model. no RDP specified
 BU_13 <- mst_design(itempool = Rmst_pool,item_id_col = "Item_id",
@@ -224,41 +252,80 @@ BU_13 <- mst_design(itempool = Rmst_pool,item_id_col = "Item_id",
 ### Step 3: Identify hierarchical requirements
 # mst structure constraints: module length
 # item reusage: no item reuse within a panel, no item reuse across 2 panels.
-# TIF: three equal interval points in [-1.96, -0.65] for the 2E module, over [-0.65, 0.65] for 1M and 2M modules, and over [0.65, 1.96] for the 2H module.
-# number of items from different IRT model: each module has 15 3PL items, 2 to 3 GPCM items, and 2 to 3 GRM items
-# number of items from each content domain: each module includes 4 to 6 items in each domain.
+# TIF: three equal interval points in [-1.96, -0.65] for the 2E module, 
+#      in [-0.65, 0.65] for 1M and 2M modules, 
+#      and in [0.65, 1.96] for the 2H module.
+# number of items from different IRT model:
+# each module has 15 3PL items, 2 to 3 GPCM items, and 2 to 3 GRM items
+# number of items from each content domain: 
+# each module includes 4 to 6 items in each domain.
 # average response time: each module has 60 +/- 4 seconds per item.
 
 ### Step 4: Translate specifications 
 BU13_structure<-mst_structure_con(x = BU_13)
-BU13_obj1<-objective_term(x = BU_13,attribute = "iif(theta=-0.65)",applied_level = "Module-level",which_module = 1,sense = "max")
-BU13_obj2<-objective_term(x = BU_13,attribute = "iif(theta=0)",applied_level = "Module-level",which_module = 1,sense = "max")
-BU13_obj3<-objective_term(x = BU_13,attribute = "iif(theta=0.65)",applied_level = "Module-level",which_module = 1,sense = "max")
-BU13_obj4<-objective_term(x = BU_13,attribute = "iif(theta=-1.96)",applied_level = "Module-level",which_module = 2,sense = "max")
-BU13_obj5<-objective_term(x = BU_13,attribute = "iif(theta=-1.305)",applied_level = "Module-level",which_module = 2,sense = "max")
-BU13_obj6<-objective_term(x = BU_13,attribute = "iif(theta=-0.65)",applied_level = "Module-level",which_module = 2,sense = "max")
-BU13_obj7<-objective_term(x = BU_13,attribute = "iif(theta=-0.65)",applied_level = "Module-level",which_module = 3,sense = "max")
-BU13_obj8<-objective_term(x = BU_13,attribute = "iif(theta=0)",applied_level = "Module-level",which_module = 3,sense = "max")
-BU13_obj9<-objective_term(x = BU_13,attribute = "iif(theta=0.65)",applied_level = "Module-level",which_module = 3,sense = "max")
-BU13_obj10<-objective_term(x = BU_13,attribute = "iif(theta=0.65)",applied_level = "Module-level",which_module = 4,sense = "max")
-BU13_obj11<-objective_term(x = BU_13,attribute = "iif(theta=1.305)",applied_level = "Module-level",which_module = 4,sense = "max")
-BU13_obj12<-objective_term(x = BU_13,attribute = "iif(theta=1.96)",applied_level = "Module-level",which_module = 4,sense = "max")
-BU13_obj<-capped_maximin_obj(x = BU_13,multiple_terms = list(BU13_obj1,BU13_obj2,BU13_obj3,
-                                                             BU13_obj4,BU13_obj5,BU13_obj6,
-                                                             BU13_obj7,BU13_obj8,BU13_obj9,
-                                                             BU13_obj10,BU13_obj11,BU13_obj12))
-BU13_itemtype<-test_itemcat_range_con(x = BU_13,attribute = "model",cat_levels = c("3PL","GPCM","GRM"),
-                                      min = c(15,2,2),max = c(15,3,3),which_module = 1:4)
-BU13_content<-test_itemcat_range_con(x = BU_13,attribute = "content",cat_levels = content_categories,
-                                     min = 4,max = 6,which_module = 1:4)
-BU13_time<-test_itemquant_range_con(x = BU_13,attribute = "time",min = 56*20,max = 64*20,which_module = 1:4)
+BU13_obj1<-objective_term(x = BU_13,attribute = "iif(theta=-0.65)",
+                          applied_level = "Module-level",
+                          which_module = 1,sense = "max")
+BU13_obj2<-objective_term(x = BU_13,attribute = "iif(theta=0)",
+                          applied_level = "Module-level",
+                          which_module = 1,sense = "max")
+BU13_obj3<-objective_term(x = BU_13,attribute = "iif(theta=0.65)",
+                          applied_level = "Module-level",
+                          which_module = 1,sense = "max")
+BU13_obj4<-objective_term(x = BU_13,attribute = "iif(theta=-1.96)",
+                          applied_level = "Module-level",
+                          which_module = 2,sense = "max")
+BU13_obj5<-objective_term(x = BU_13,attribute = "iif(theta=-1.305)",
+                          applied_level = "Module-level",
+                          which_module = 2,sense = "max")
+BU13_obj6<-objective_term(x = BU_13,attribute = "iif(theta=-0.65)",
+                          applied_level = "Module-level",
+                          which_module = 2,sense = "max")
+BU13_obj7<-objective_term(x = BU_13,attribute = "iif(theta=-0.65)",
+                          applied_level = "Module-level",
+                          which_module = 3,sense = "max")
+BU13_obj8<-objective_term(x = BU_13,attribute = "iif(theta=0)",
+                          applied_level = "Module-level",
+                          which_module = 3,sense = "max")
+BU13_obj9<-objective_term(x = BU_13,attribute = "iif(theta=0.65)",
+                          applied_level = "Module-level",
+                          which_module = 3,sense = "max")
+BU13_obj10<-objective_term(x = BU_13,attribute = "iif(theta=0.65)",
+                           applied_level = "Module-level",
+                           which_module = 4,sense = "max")
+BU13_obj11<-objective_term(x = BU_13,attribute = "iif(theta=1.305)",
+                           applied_level = "Module-level",
+                           which_module = 4,sense = "max")
+BU13_obj12<-objective_term(x = BU_13,attribute = "iif(theta=1.96)",
+                           applied_level = "Module-level",
+                           which_module = 4,sense = "max")
+BU13_obj<-capped_maximin_obj(x = BU_13,
+                             multiple_terms = list(BU13_obj1,BU13_obj2,BU13_obj3,
+                                                   BU13_obj4,BU13_obj5,BU13_obj6,
+                                                   BU13_obj7,BU13_obj8,BU13_obj9,
+                                                   BU13_obj10,BU13_obj11,BU13_obj12))
+BU13_itemtype<-test_itemcat_range_con(x = BU_13,attribute = "model",
+                                      cat_levels = c("3PL","GPCM","GRM"),
+                                      min = c(15,2,2),max = c(15,3,3),
+                                      which_module = 1:4)
+BU13_content<-test_itemcat_range_con(x = BU_13,attribute = "content",
+                                     cat_levels = content_categories,
+                                     min = 4,max = 6,
+                                     which_module = 1:4)
+BU13_time<-test_itemquant_range_con(x = BU_13,attribute = "time",
+                                    min = 56*20,max = 64*20,
+                                    which_module = 1:4)
 BU13_noreuse<-panel_itemreuse_con(x = BU_13,overlap = FALSE)
-BU13_onepanel<-onepanel_spec(x = BU_13,constraints = list(BU13_structure,BU13_noreuse,BU13_itemtype,BU13_content,BU13_time),
+BU13_onepanel<-onepanel_spec(x = BU_13,
+                             constraints = list(BU13_structure,BU13_noreuse,
+                                                BU13_itemtype,BU13_content,BU13_time),
                              objective = BU13_obj)
-BU13_model<-multipanel_spec(x = BU_13,panel_model = BU13_onepanel,num_panels = 2,global_min_use = 0,global_max_use = 1)  
+BU13_model<-multipanel_spec(x = BU_13,panel_model = BU13_onepanel,
+                            num_panels = 2,
+                            global_min_use = 0,global_max_use = 1)  
 # \dontrun{
 # ### Step 5: Execute assembly via solver
-# BU13_result<-solve_model(model_spec = BU13_model,solver = "HiGHS",check_feasibility = FALSE,time_limit = 5*60)
+# BU13_result<-solve_model(model_spec = BU13_model,solver = "HiGHS",time_limit = 5*60)
 # BU13_panel<-assembled_panel(x = BU_13,result = BU13_result)
 # ### Step 6: Diagnose infeasible model
 # There is an optimal solution. Skip this step.
@@ -271,39 +338,36 @@ BU13_model<-multipanel_spec(x = BU_13,panel_model = BU13_onepanel,num_panels = 2
 data("BU13_panel")
 ### Step 7: Evaluate panel
 report_test_itemcat(assembled_panel = BU13_panel,
-                    attribute = "content",cat_levels = content_categories,
+                    attribute = "content",
+                    cat_levels = content_categories,
                     which_module = 1:4)
 report_test_itemcat(assembled_panel = BU13_panel,
-                    attribute = "model",cat_levels = c("3PL","GPCM","GRM"),
+                    attribute = "model",
+                    cat_levels = c("3PL","GPCM","GRM"),
                     which_module = 1:4)
 # average time in each module per item
-report_test_itemquant(assembled_panel = BU13_panel,attribute = "time",statistic = "average",which_module = 1:4)
+report_test_itemquant(assembled_panel = BU13_panel,
+                      attribute = "time",
+                      statistic = "average",
+                      which_module = 1:4)
 # TIF at [-0.65, 0.65] for 1M and 2M modules
 report_test_tif(assembled_panel = BU13_panel,
                 theta = seq(-0.65,0.65,length.out = 3),
-                item_par_cols = list("3PL"=c("a","b","c"),
-                                     "GPCM" = c("alpha","delta1","delta2","delta3"),
-                                     "GRM" = c("alpha","beta1","beta2")),
+                item_par_cols = item_par_cols,
                 model_col = "model",which_module = c(1,3))
 # TIF at [-1.96, -0.65] for the 2E module
 report_test_tif(assembled_panel = BU13_panel,
                 theta = seq(-1.96,-0.65,length.out = 3),
-                item_par_cols = list("3PL"=c("a","b","c"),
-                                     "GPCM" = c("alpha","delta1","delta2","delta3"),
-                                     "GRM" = c("alpha","beta1","beta2")),
+                item_par_cols = item_par_cols,
                 model_col = "model",which_module = 2)
 # TIF at [0.65, 1.96] for the 2H module
 report_test_tif(assembled_panel = BU13_panel,
                 theta = seq(0.65,1.96,length.out = 3),
-                item_par_cols = list("3PL"=c("a","b","c"),
-                                     "GPCM" = c("alpha","delta1","delta2","delta3"),
-                                     "GRM" = c("alpha","beta1","beta2")),
+                item_par_cols = item_par_cols,
                 model_col = "model",which_module = 4)
 
 plot_panel_tif(assembled_panel = BU13_panel,
-               item_par_cols = list("3PL"=c("a","b","c"),
-                                    "GPCM" = c("alpha","delta1","delta2","delta3"),
-                                    "GRM" = c("alpha","beta1","beta2")),
+               item_par_cols = item_par_cols,
                model_col = "model",theta = seq(-3,3,0.1),unit = "module",mode = "within_panel")
 ```
 
@@ -319,13 +383,14 @@ To yield decent routing accuracy, the first two stages are required to include a
 
 ```{r}
 ### Step 1: Prepare the Item Pool
-theta_values<-unique(c(seq(-0.64,0.64,length.out = 3),seq(-1.96,-0.64,length.out = 3),seq(0.64,1.96,length.out = 3)))
-Rmst_pool[,paste0("iif(theta=",theta_values,")")]<-compute_iif(Rmst_pool,
-                                                                 item_par_cols = list("3PL"=c("a","b","c"),
-                                                                                      "GPCM" = c("alpha","delta1","delta2","delta3"),
-                                                                                      "GRM" = c("alpha","beta1","beta2")),
-                                                                 theta = theta_values,model_col = "model",
-                                                                 D = 1)
+theta_values<-unique(c(seq(-0.64,0.64,length.out = 3),
+                       seq(-1.96,-0.64,length.out = 3),
+                       seq(0.64,1.96,length.out = 3)))
+theta_iif<-compute_iif(Rmst_pool,
+                       item_par_cols = item_par_cols,
+                       theta = theta_values,model_col = "model",
+                       D = 1)
+Rmst_pool[,paste0("iif(theta=",theta_values,")")]<-theta_iif
 
 ### Step 2: Specify the MST Structure: 40 items in each pathway, routing decision point is 0.
 TD_123 <- mst_design(itempool = Rmst_pool,item_id_col = "Item_id",
@@ -333,47 +398,86 @@ TD_123 <- mst_design(itempool = Rmst_pool,item_id_col = "Item_id",
                      pathway_length = 40)
 
 ### Step 3: Identify hierarchical requirements
-# mst structure constraints: pathway length, minimum stage length in stage 1 and 2. no 1M-2E-3H & 1M-2H-3E pathways.
-# item reusage: no items reused within a pathway, an item can be at most selected four times across 2 panels.
-# TIF: three equal interval points in [-1.96, -0.64] for the easy route (1M-2E-3E), over [-0.64, 0.64] for the moderate routes (1M-2E-3M & 1M-2H-3M), and over [0.64, 1.96] for the hard route (1M-2H-3H)
-# number of items from different IRT model: each pathway has 34 to 38 3PL items, 1 to 3 GPCM items, and 1 to 3 GRM items. 
+# mst structure constraints: pathway length, minimum stage length in stage 1 and 2. 
+# no 1M-2E-3H & 1M-2H-3E pathways.
+# item reusage: no items reused within a pathway, an item can be 
+# at most selected four times across 2 panels.
+# TIF: three equal interval points in [-1.96, -0.64] for the easy route (1M-2E-3E), 
+# over [-0.64, 0.64] for the moderate routes (1M-2E-3M & 1M-2H-3M), 
+# and over [0.64, 1.96] for the hard route (1M-2H-3H)
+# number of items from different IRT model: each pathway has 34 to 38 3PL items, 
+# 1 to 3 GPCM items, and 1 to 3 GRM items. 
 # number of items from each content domain: each pathway includes 8 to 12 items in each domain.
 # average response time: each pathway has 60 +/- 4 seconds per item.
 
 ### Step 4: Translate specifications 
-TD123_structure<-mst_structure_con(x = TD_123,stage_length_bound = data.frame(stage = c(1,2,3),
-                                                                              min = c(8,8,NA_integer_),
-                                                                              max = rep(NA_integer_,3)))
-TD123_obj1<-objective_term(x = TD_123,attribute = "iif(theta=-1.96)",applied_level = "Pathway-level",which_pathway = 1,sense = "max")
-TD123_obj2<-objective_term(x = TD_123,attribute = "iif(theta=-1.3)",applied_level = "Pathway-level",which_pathway = 1,sense = "max")
-TD123_obj3<-objective_term(x = TD_123,attribute = "iif(theta=-0.64)",applied_level = "Pathway-level",which_pathway = 1,sense = "max")
-TD123_obj4<-objective_term(x = TD_123,attribute = "iif(theta=-0.64)",applied_level = "Pathway-level",which_pathway = 2,sense = "max")
-TD123_obj5<-objective_term(x = TD_123,attribute = "iif(theta=0)",applied_level = "Pathway-level",which_pathway = 2,sense = "max")
-TD123_obj6<-objective_term(x = TD_123,attribute = "iif(theta=0.64)",applied_level = "Pathway-level",which_pathway = 2,sense = "max")
-TD123_obj7<-objective_term(x = TD_123,attribute = "iif(theta=-0.64)",applied_level = "Pathway-level",which_pathway = 3,sense = "max")
-TD123_obj8<-objective_term(x = TD_123,attribute = "iif(theta=0)",applied_level = "Pathway-level",which_pathway = 3,sense = "max")
-TD123_obj9<-objective_term(x = TD_123,attribute = "iif(theta=0.64)",applied_level = "Pathway-level",which_pathway = 3,sense = "max")
-TD123_obj10<-objective_term(x = TD_123,attribute = "iif(theta=0.64)",applied_level = "Pathway-level",which_pathway = 4,sense = "max")
-TD123_obj11<-objective_term(x = TD_123,attribute = "iif(theta=1.3)",applied_level = "Pathway-level",which_pathway = 4,sense = "max")
-TD123_obj12<-objective_term(x = TD_123,attribute = "iif(theta=1.96)",applied_level = "Pathway-level",which_pathway = 4,sense = "max")
-TD123_obj<-capped_maximin_obj(x = TD_123,multiple_terms = list(TD123_obj1,TD123_obj2,TD123_obj3,
-                                                               TD123_obj4,TD123_obj5,TD123_obj6,
-                                                               TD123_obj7,TD123_obj8,TD123_obj9,
-                                                               TD123_obj10,TD123_obj11,TD123_obj12))
-TD123_itemtype<-test_itemcat_range_con(x = TD_123,attribute = "model",cat_levels = c("3PL","GPCM","GRM"),
-                                       min = c(34,1,1),max = c(38,3,3),which_pathway = 1:4)
-TD123_content<-test_itemcat_range_con(x = TD_123,attribute = "content",cat_levels = content_categories,
-                                      min = 8,max = 12,which_pathway = 1:4)
-TD123_time<-test_itemquant_range_con(x = TD_123,attribute = "time",min = 56*40,max = 64*40,
+TD123_structure<-mst_structure_con(x = TD_123,
+                                   stage_length_bound = data.frame(stage = c(1,2,3),
+                                                                   min = c(8,8,NA_integer_),
+                                                                   max = rep(NA_integer_,3)))
+TD123_obj1<-objective_term(x = TD_123,attribute = "iif(theta=-1.96)",
+                           applied_level = "Pathway-level",
+                           which_pathway = 1,sense = "max")
+TD123_obj2<-objective_term(x = TD_123,attribute = "iif(theta=-1.3)",
+                           applied_level = "Pathway-level",
+                           which_pathway = 1,sense = "max")
+TD123_obj3<-objective_term(x = TD_123,attribute = "iif(theta=-0.64)",
+                           applied_level = "Pathway-level",
+                           which_pathway = 1,sense = "max")
+TD123_obj4<-objective_term(x = TD_123,attribute = "iif(theta=-0.64)",
+                           applied_level = "Pathway-level",
+                           which_pathway = 2,sense = "max")
+TD123_obj5<-objective_term(x = TD_123,attribute = "iif(theta=0)",
+                           applied_level = "Pathway-level",
+                           which_pathway = 2,sense = "max")
+TD123_obj6<-objective_term(x = TD_123,attribute = "iif(theta=0.64)",
+                           applied_level = "Pathway-level",
+                           which_pathway = 2,sense = "max")
+TD123_obj7<-objective_term(x = TD_123,attribute = "iif(theta=-0.64)",
+                           applied_level = "Pathway-level",
+                           which_pathway = 3,sense = "max")
+TD123_obj8<-objective_term(x = TD_123,attribute = "iif(theta=0)",
+                           applied_level = "Pathway-level",
+                           which_pathway = 3,sense = "max")
+TD123_obj9<-objective_term(x = TD_123,attribute = "iif(theta=0.64)",
+                           applied_level = "Pathway-level",
+                           which_pathway = 3,sense = "max")
+TD123_obj10<-objective_term(x = TD_123,attribute = "iif(theta=0.64)",
+                            applied_level = "Pathway-level",
+                            which_pathway = 4,sense = "max")
+TD123_obj11<-objective_term(x = TD_123,attribute = "iif(theta=1.3)",
+                            applied_level = "Pathway-level",
+                            which_pathway = 4,sense = "max")
+TD123_obj12<-objective_term(x = TD_123,attribute = "iif(theta=1.96)",
+                            applied_level = "Pathway-level",
+                            which_pathway = 4,sense = "max")
+TD123_obj<-capped_maximin_obj(x = TD_123,
+                              multiple_terms = list(TD123_obj1,TD123_obj2,TD123_obj3,
+                                                    TD123_obj4,TD123_obj5,TD123_obj6,
+                                                    TD123_obj7,TD123_obj8,TD123_obj9,
+                                                    TD123_obj10,TD123_obj11,TD123_obj12))
+TD123_itemtype<-test_itemcat_range_con(x = TD_123,attribute = "model",
+                                       cat_levels = c("3PL","GPCM","GRM"),
+                                       min = c(34,1,1),max = c(38,3,3),
+                                       which_pathway = 1:4)
+TD123_content<-test_itemcat_range_con(x = TD_123,attribute = "content",
+                                      cat_levels = content_categories,
+                                      min = 8,max = 12,
+                                      which_pathway = 1:4)
+TD123_time<-test_itemquant_range_con(x = TD_123,attribute = "time",
+                                     min = 56*40,max = 64*40,
                                      which_pathway = 1:4)
 TD123_noreuse<-panel_itemreuse_con(x = TD_123,overlap = TRUE)
-TD123_onepanel<-onepanel_spec(x = TD_123,constraints = list(TD123_structure,TD123_noreuse,TD123_itemtype,TD123_content,TD123_time),
+TD123_onepanel<-onepanel_spec(x = TD_123,
+                              constraints = list(TD123_structure,TD123_noreuse,
+                                                 TD123_itemtype,TD123_content,TD123_time),
                               objective = TD123_obj)
-TD123_model<-multipanel_spec(x = TD_123,panel_model = TD123_onepanel,num_panels = 2,global_max_use = 4)
+TD123_model<-multipanel_spec(x = TD_123,panel_model = TD123_onepanel,
+                             num_panels = 2,global_max_use = 4)
 
 # \dontrun{
 # ### Step 5: Execute assembly via solver
-# TD123_result<-solve_model(model_spec = TD123_model,solver = "HiGHS",check_feasibility = FALSE,time_limit = 5*60)
+# TD123_result<-solve_model(model_spec = TD123_model,solver = "HiGHS",time_limit = 5*60)
 # TD123_panel<-assembled_panel(x = TD_123,result = TD123_result)
 # ### Step 6: Diagnose infeasible model
 # There is an optimal solution. Skip this step.
@@ -386,97 +490,137 @@ TD123_model<-multipanel_spec(x = TD_123,panel_model = TD123_onepanel,num_panels 
 data("TD123_panel")
 ### Step 7: Evaluate panel
 report_test_itemcat(assembled_panel = TD123_panel,
-                    attribute = "content",cat_levels = content_categories,
+                    attribute = "content",
+                    cat_levels = content_categories,
                     which_pathway = 1:4)
 report_test_itemcat(assembled_panel = TD123_panel,
-                    attribute = "model",cat_levels = c("3PL","GPCM","GRM"),
+                    attribute = "model",
+                    cat_levels = c("3PL","GPCM","GRM"),
                     which_pathway = 1:4)
 # average time in each module per item
-report_test_itemquant(assembled_panel = TD123_panel,attribute = "time",statistic = "average",which_pathway = 1:4)
+report_test_itemquant(assembled_panel = TD123_panel,
+                      attribute = "time",
+                      statistic = "average",
+                      which_pathway = 1:4)
 # TIF at [-1.96, -0.64] for the easy route (1M-2E-3E)
 report_test_tif(assembled_panel = TD123_panel,
                 theta = seq(-1.96,-0.64,length.out = 3),
-                item_par_cols = list("3PL"=c("a","b","c"),
-                                     "GPCM" = c("alpha","delta1","delta2","delta3"),
-                                     "GRM" = c("alpha","beta1","beta2")),
+                item_par_cols = item_par_cols,
                 model_col = "model",which_pathway = 1)
 # TIF at [-0.64, 0.64] for the moderate routes (1M-2E-3M & 1M-2H-3M),
 report_test_tif(assembled_panel = TD123_panel,
                 theta = seq(-0.64,0.64,length.out = 3),
-                item_par_cols = list("3PL"=c("a","b","c"),
-                                     "GPCM" = c("alpha","delta1","delta2","delta3"),
-                                     "GRM" = c("alpha","beta1","beta2")),
+                item_par_cols = item_par_cols,
                 model_col = "model",which_pathway = 2:3)
 # TIF at [0.64, 1.96] for the hard route (1M-2H-3H)
 report_test_tif(assembled_panel = TD123_panel,
                 theta = seq(0.64,1.96,length.out = 3),
-                item_par_cols = list("3PL"=c("a","b","c"),
-                                     "GPCM" = c("alpha","delta1","delta2","delta3"),
-                                     "GRM" = c("alpha","beta1","beta2")),
+                item_par_cols = item_par_cols,
                 model_col = "model",which_pathway = 4)
 
 
 plot_panel_tif(assembled_panel = TD123_panel,
-               item_par_cols = list("3PL"=c("a","b","c"),
-                                    "GPCM" = c("alpha","delta1","delta2","delta3"),
-                                    "GRM" = c("alpha","beta1","beta2")),
-               model_col = "model",theta = seq(-3,3,0.1),unit = "pathway",mode = "within_panel")
+               item_par_cols = item_par_cols,
+               model_col = "model",theta = seq(-3,3,0.1),
+               unit = "pathway",mode = "within_panel")
 ```
 
 
 ### Hybrid 1-3 MST
 
-Assemble 2 panels of 1-3 MST using a hybrid assembly approach that sets constraints on routes but test information functions on modules. In particular, module 1M is required to have a flat TIF of 6 over the region from -1.28 to 1.28, module 2E, 2M, and 2H to hit the TIF target of 8 at -1.28, 0, and 1.28 respectively. Additionally, each route is required to have 4 to 6 items in each content domain and 20 items in total.
+In the Rmst package demonstration of the hybrid assembly for an MST 1–3 design, the example appears to use an item pool generated with a seed different from the default setting. When running the same demonstration code with the default seed, the solver returns "No solution for the LP model." Therefore, the Hybrid 1–3 panel was assembled using specifications that differ from those in the Rmst package demonstration.
+
+Assemble 2 panels of 1-3 MST using the extended-hybrid assembly approach. Each module includes 20 items, and no item reuse is allowed. Maximize TIF over the [-1.96, -0.65] for the easy pathways, over [-0.65, 0.65] for the moderate pathways, and over [0.65, 1.96] for the hard pathways.
+In addition, each module is required to comply with the following constraints: 15 3PL items, 2 to 3 GPCM items, and 2 to 3 GRM items; 4 to 6 items in each of the four content domains; each pathway is required to have 56 to 64 seconds of response time per item
 
 ```{r}
 ### Step 1: Prepare the Item Pool
-theta_values<-seq(-1.28,1.28,length.out = 3)
-Rmst_pool[,paste0("iif(theta=",theta_values,")")]<-compute_iif(Rmst_pool,
-                                                                 item_par_cols = list("3PL"=c("a","b","c"),
-                                                                                      "GPCM" = c("alpha","delta1","delta2","delta3"),
-                                                                                      "GRM" = c("alpha","beta1","beta2")),
-                                                                 theta = theta_values,model_col = "model",
-                                                                 D = 1)
+theta_values<-unique(c(seq(-0.65,0.65,length.out = 3),
+                       seq(-1.96,-0.65,length.out = 3),
+                       seq(0.65,1.96,length.out = 3)))
+theta_iif<-compute_iif(Rmst_pool,
+                       item_par_cols = item_par_cols,
+                       theta = theta_values,model_col = "model",
+                       D = 1)
+Rmst_pool[,paste0("iif(theta=",theta_values,")")]<-theta_iif
 
 ### Step 2: Specify the MST Structure: 20 items in each pathway
 Hy_13 <- mst_design(itempool = Rmst_pool,item_id_col = "Item_id",
-                     design = "1-3",rdp = NULL,pathway_length = 20)
+                     design = "1-3",rdp = NULL,
+                     module_length = c(20,20,20,20))
 
 ### Step 3: Identify hierarchical requirements
-# mst structure constraints: pathway length
+# mst structure constraints: module length
 # item reusage: no item reuse within a panel, no item reuse across 2 panels.
-# TIF: minimum TIF of 6 at three equal interval points in [-1.28, 1.28] for routing module, minimum TIF of 8 at -1.28 for S2E, 0 for S2M, 1.28 for S2H modules
+# TIF: minimum TIF of 6 at three equal interval points in [-1.28, 1.28] for 
+# routing module, minimum TIF of 8 at -1.28 for S2E, 0 for S2M, 1.28 for S2H modules
 # number of items from each content domain: each pathway includes 4 to 6 items in each domain.
+# TIF: three equal interval points in [-1.96, -0.65] for the S1R-S2E pathways, 
+#      in [-0.65, 0.65] for S1R-S2M pathways, 
+#      and in [0.65, 1.96] for S1R-S2H pathways.
+# number of items from different IRT model:
+# each module has 15 3PL items, 2 to 3 GPCM items, and 2 to 3 GRM items
+# number of items from each content domain: 
+# each module includes 4 to 6 items in each domain.
+# average response time: each pathway has 60 +/- 4 seconds per item.
+
 
 ### Step 4: Translate specifications 
 Hy13_structure<-mst_structure_con(x = Hy_13)
 Hy13_noreuse<-panel_itemreuse_con(x = Hy_13,overlap = FALSE)
-Hy13_obj1<-objective_term(x = Hy_13,attribute = "iif(theta=-1.28)",applied_level = "Module-level",
-                          which_module = 1,sense = "min",goal = 6)
-Hy13_obj2<-objective_term(x = Hy_13,attribute = "iif(theta=0)",applied_level = "Module-level",
-                          which_module = 1,sense = "min",goal = 6)
-Hy13_obj3<-objective_term(x = Hy_13,attribute = "iif(theta=1.28)",applied_level = "Module-level",
-                          which_module = 1,sense = "min",goal = 6)
-Hy13_obj4<-objective_term(x = Hy_13,attribute = "iif(theta=-1.28)",applied_level = "Module-level",
-                          which_module = 2,sense = "min",goal = 8)
-Hy13_obj5<-objective_term(x = Hy_13,attribute = "iif(theta=0)",applied_level = "Module-level",
-                          which_module = 3,sense = "min",goal = 8)
-Hy13_obj6<-objective_term(x = Hy_13,attribute = "iif(theta=1.28)",applied_level = "Module-level",
-                          which_module = 4,sense = "min",goal = 8)
-Hy13_obj<-minimax_obj(x = Hy_13,multiple_terms = list(Hy13_obj1,Hy13_obj2,Hy13_obj3,Hy13_obj4,Hy13_obj5,Hy13_obj6),
-                      strategy_args = list(mode = "one_dev"))
-Hy13_minTIF1<-test_itemquant_con(x = Hy_13,attribute = "iif(theta=-1.28)",operator = ">=",target_value = c(6,8),which_module = c(1,3))
-Hy13_minTIF2<-test_itemquant_con(x = Hy_13,attribute = "iif(theta=0)",operator = ">=",target_value = c(6,8),which_module = c(1,2))
-Hy13_minTIF3<-test_itemquant_con(x = Hy_13,attribute = "iif(theta=1.28)",operator = ">=",target_value = c(6,8),which_module = c(1,4))
-Hy13_content<-test_itemcat_range_con(x = Hy_13,attribute = "content",cat_levels = content_categories,
-                                     min = 4,max = 6,which_pathway = 1:3)
-Hy13_onepanel<-onepanel_spec(x = Hy_13,constraints = list(Hy13_structure,Hy13_noreuse,Hy13_content),
+Hy13_itemtype<-test_itemcat_range_con(x = Hy_13,attribute = "model",
+                                   cat_levels = c("3PL","GPCM","GRM"),
+                                   min = c(15,2,2),max = c(15,3,3),
+                                  which_module = 1:4)
+Hy13_content<-test_itemcat_range_con(x = Hy_13,attribute = "content",
+                                     cat_levels = content_categories,
+                                     min = 4,max = 6,
+                                     which_module = 1:4)
+Hy13_time<-test_itemquant_range_con(x = Hy_13,attribute = "time",
+                                    min = 56*40,max = 64*40,
+                                    which_pathway = 1:3)
+Hy13_obj1<-objective_term(x = Hy_13,attribute = "iif(theta=-0.65)",
+                          applied_level = "Pathway-level",
+                          which_pathway = 1,sense = "max")
+Hy13_obj2<-objective_term(x = Hy_13,attribute = "iif(theta=0)",
+                          applied_level = "Pathway-level",
+                          which_pathway = 1,sense = "max")
+Hy13_obj3<-objective_term(x = Hy_13,attribute = "iif(theta=0.65)",
+                          applied_level = "Pathway-level",
+                          which_pathway = 1,sense = "max")
+Hy13_obj4<-objective_term(x = Hy_13,attribute = "iif(theta=-1.96)",
+                          applied_level = "Pathway-level",
+                          which_pathway = 2,sense = "max")
+Hy13_obj5<-objective_term(x = Hy_13,attribute = "iif(theta=-1.305)",
+                          applied_level = "Pathway-level",
+                          which_pathway = 2,sense = "max")
+Hy13_obj6<-objective_term(x = Hy_13,attribute = "iif(theta=-0.65)",
+                          applied_level = "Pathway-level",
+                          which_pathway = 2,sense = "max")
+Hy13_obj7<-objective_term(x = Hy_13,attribute = "iif(theta=-0.65)",
+                          applied_level = "Pathway-level",
+                          which_pathway = 3,sense = "max")
+Hy13_obj8<-objective_term(x = Hy_13,attribute = "iif(theta=0)",
+                          applied_level = "Pathway-level",
+                          which_pathway = 3,sense = "max")
+Hy13_obj9<-objective_term(x = Hy_13,attribute = "iif(theta=0.65)",
+                          applied_level = "Pathway-level",
+                          which_pathway = 3,sense = "max")
+Hy13_obj<-capped_maximin_obj(x = Hy_13,
+                             multiple_terms = list(Hy13_obj1,Hy13_obj2,Hy13_obj3,
+                                            Hy13_obj4,Hy13_obj5,Hy13_obj6,
+                                            Hy13_obj7,Hy13_obj8,Hy13_obj9))
+Hy13_onepanel<-onepanel_spec(x = Hy_13,
+                             constraints = list(Hy13_structure,Hy13_noreuse,
+                                                Hy13_itemtype,Hy13_content,
+                                                Hy13_time),
                              objective = Hy13_obj)
-Hy13_model<-multipanel_spec(x = Hy_13,panel_model = Hy13_onepanel,num_panels = 2,global_max_use = 1)
+Hy13_model<-multipanel_spec(x = Hy_13,panel_model = Hy13_onepanel,
+                            num_panels = 2,global_max_use = 1)
 
 # \dontrun{
 # ### Step 5: Execute assembly via solver
-# Hy13_result<-solve_model(model_spec = Hy13_model,solver = "HiGHS",check_feasibility = FALSE,time_limit = 5*60)
+# Hy13_result<-solve_model(model_spec = Hy13_model,solver = "HiGHS",time_limit = 5*60)
 # Hy13_panel<-assembled_panel(x = Hy_13,result = Hy13_result)
 # ### Step 6: Diagnose infeasible model
 # There is an optimal solution. Skip this step.
@@ -489,19 +633,22 @@ Hy13_model<-multipanel_spec(x = Hy_13,panel_model = Hy13_onepanel,num_panels = 2
 data("Hy13_panel")
 ### Step 7: Evaluate panel
 report_test_itemcat(assembled_panel = Hy13_panel,
-                    attribute = "content",cat_levels = content_categories,
-                    which_pathway = 1:3)
-report_test_tif(assembled_panel = Hy13_panel,
-                theta = seq(-1.28,1.28,length.out = 3),
-                item_par_cols = list("3PL"=c("a","b","c"),
-                                     "GPCM" = c("alpha","delta1","delta2","delta3"),
-                                     "GRM" = c("alpha","beta1","beta2")),
-                model_col = "model",which_module = 1:4)
+                    attribute = "content",
+                    cat_levels = content_categories,
+                    which_module = 1:4)
+report_test_itemcat(assembled_panel = Hy13_panel,
+                    attribute = "model",
+                    cat_levels = c("3PL","GPCM","GRM"),
+                    which_module = 1:4)
+report_test_itemquant(assembled_panel = Hy13_panel,
+                      attribute = "time",
+                      statistic = "average",
+                      which_pathway = 1:3)
 plot_panel_tif(assembled_panel = Hy13_panel,
-               item_par_cols = list("3PL"=c("a","b","c"),
-                                    "GPCM" = c("alpha","delta1","delta2","delta3"),
-                                    "GRM" = c("alpha","beta1","beta2")),
-               model_col = "model",theta = seq(-3,3,0.1),unit = "module",mode = "within_panel")
+               item_par_cols = item_par_cols,
+               model_col = "model",theta = seq(-3,3,0.1),
+               unit = "pathway",
+               mode = "within_panel")
 
 ```
 

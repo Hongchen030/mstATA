@@ -40,8 +40,8 @@ of an MST design.
 }
 \description{
 This function constructs linear constraints enforcing that every selected item
-satisfies a quantitative attribute requirement (e.g., difficulty ≥ c, item
-length ≤ c, discrimination within a range).
+satisfies a quantitative attribute requirement (e.g., difficulty greater than c, item
+length less than c, discrimination within a range).
 
 Constraints may be applied at the \code{"Module-level"}, \code{"Pathway-level"}, or
 \code{"Panel-level"}.
@@ -73,7 +73,7 @@ The number of constraints is
 
 where \code{side = 1} for one-sided constraints (min-only or max-only)
 and \code{side = 2} when both \code{min} and \code{max} are provided and
-\code{min ≠ max}.
+min is not equal to max.
 }
 \details{
 \strong{1. Specification}

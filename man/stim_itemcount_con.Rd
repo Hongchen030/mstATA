@@ -79,7 +79,7 @@ The number of constraints is
 
 \item \strong{Both min and max are specified:}
 
-If min ≠ max (lower and upper bound are both active), the number of constraints is
+If min is not equal to max (lower and upper bound are both active), the number of constraints is
 \strong{2 × (number of stimuli) × (number of invovled modules)}.
 
 If min = max (exact number), the number of constraints is

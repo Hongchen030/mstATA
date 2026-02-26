@@ -141,8 +141,8 @@
 #'
 #' # Example 1:
 #' # MST 1-3-3 design, 7 modules, 2 stimulus categories (history, social studies).
-#' # Stage 1: ≤ 1 history passage.
-#' # Stage 2 & 3: ≤ 1 history and ≤ 1 social studies passage in each module.
+#' # Stage 1: less than 1 history passage.
+#' # Stage 2 & 3: less than 1 history and less than 1 social studies passage in each module.
 #'
 #' test_mstATA <- mst_design(
 #'   itempool = reading_itempool,

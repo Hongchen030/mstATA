@@ -4,10 +4,16 @@
 use_gurobi<-function(A,rhs, sense, obj,lb, ub,
                      vtype,varname, modelsense,
                      params,rowname) {
-  if (!requireNamespace("gurobi", quietly = TRUE)) {
-    message("The 'gurobi' package is not installed.")
-    return(NULL)
+
+  # Check installation without requireNamespace()
+  if (!("gurobi" %in% rownames(utils::installed.packages()))){
+    stop("The 'gurobi' package is not installed.",call. = FALSE)
   }
+  # Dynamically access namespace (no gurobi::)
+  ns <- getNamespace("gurobi")
+  gurobi_fun <- get("gurobi", envir = ns)
+  gurobi_iis_fun <- get("gurobi_iis", envir = ns)
+
   if (!inherits(A, "sparseMatrix")) A <- Matrix::Matrix(A, sparse = TRUE)
 
   model <- list(A = A,rhs = rhs,sense = sense,obj = obj,lb = lb, ub = ub,
@@ -15,7 +21,7 @@ use_gurobi<-function(A,rhs, sense, obj,lb, ub,
   params <- params
   start_time<-Sys.time()
   result <- tryCatch({
-    gurobi::gurobi(model = model, params = params)
+    gurobi_fun(model = model, params = params)
   }, error = function(e) {
     message("gurobi failed: ", e$message)
     return(NULL)
@@ -37,7 +43,7 @@ use_gurobi<-function(A,rhs, sense, obj,lb, ub,
   } else if (raw_status == "INFEASIBLE") {
     message("gurobi reports the model is infeasible.")
     IIS <- tryCatch({
-      find_iis <- gurobi::gurobi_iis(model = model, params = params)
+      find_iis <- gurobi_iis_fun(model = model, params = params)
       rowname[which(find_iis$Arows)]
     }, error = function(e) {
       warning("Failed to compute IIS: ", e$message)

@@ -33,7 +33,7 @@
 #'
 #' where \code{side = 1} for one-sided constraints (min-only or max-only)
 #' and \code{side = 2} when both \code{min} and \code{max} are provided and
-#' \code{min ≠ max}.
+#' min is not equal to max.
 #'
 #' @param x An object of class `"mstATA_design"` created by `mst_design()`.
 #' @param attribute A string giving the column name in `x$ItemPool` that represents the quantitative attribute for the stimulus.

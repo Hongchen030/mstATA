@@ -84,7 +84,7 @@ Before assembly, the item pool must contain all required attributes (categorical
 
 - `get_attribute_val()`: extract categorical/quantitative attribute values
 - `create_enemy_sets()`: create enemy item sets/enemy stimulus sets
-- `concat_enemy_sets()`: combine enemy item sets/enemy stimulus sets from different sources (e.g., similarity, clueing, or other test security concern)
+- `concat_enemy_sets()`: combine enemy item sets/enemy stimulus sets from different sources (e.g., similarity, cluing, or other test security concern)
 - `create_pivot_stimulus_map()`: create item-stimulus mapping
 
 ### Step 2: Specify the MST Structure
@@ -233,7 +233,7 @@ Content and structural reports:
 modules/pathways.
 - `report_test_itemquant()`: summarizes quantitative item attributes (e.g., test information, time, difficulty) in specific modules/pathways.
 - `report_test_tcc()`: computes and reports category probability curves aggregated at the module or pathway level for assembled MST panels.
-- `report_test_tif()`: cmputes and reports test information functions aggregated at the module or pathway level for assembled MST panels.
+- `report_test_tif()`: computes and reports test information functions aggregated at the module or pathway level for assembled MST panels.
 
 Psychometric evaluation:
 

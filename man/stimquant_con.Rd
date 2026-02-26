@@ -79,7 +79,7 @@ The number of constraints is
 
 where \code{side = 1} for one-sided constraints (min-only or max-only)
 and \code{side = 2} when both \code{min} and \code{max} are provided and
-\code{min ≠ max}.
+min is not equal to max.
 }
 \details{
 \strong{1. Specification}

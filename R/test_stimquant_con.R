@@ -147,7 +147,7 @@
 #' )
 #'
 #' # Example 1:
-#' # The total words in each module must be ≤ 300.
+#' # The total words in each module must be less than 300.
 #' test_stimquant_con(
 #'   x = test_mstATA,
 #'   attribute = "stimulus_words",

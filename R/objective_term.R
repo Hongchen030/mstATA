@@ -104,7 +104,7 @@
 #'   pathway_length = 8
 #' )
 #'
-#' # Example 1: Maximize information at θ = 0 in the routing module
+#' # Example 1: Maximize information at $\theta$ = 0 in the routing module
 #' objective_term(
 #'   x = test_mstATA,
 #'   attribute = "iif(theta=0)",
@@ -114,7 +114,7 @@
 #'   sense = "max"
 #' )
 #'
-#' # Example 2: Target a test information value at θ = -1 for pathway 1
+#' # Example 2: Target a test information value at $\theta$ = -1 for pathway 1
 #' objective_term(
 #'   x = test_mstATA,
 #'   attribute = "iif(theta=-1)",

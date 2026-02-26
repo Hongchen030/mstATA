@@ -146,8 +146,7 @@
 #'
 #' @references
 #' Xiong, X. (2018). A hybrid strategy to construct multistage adaptive tests.
-#' \emph{Applied Psychological Measurement}, 42(8), 630–643.
-#' <https://doi.org/10.1177/0146621618762739>
+#' \emph{Applied Psychological Measurement}, 42(8), 630–643.{doi:10.1177/0146621618762739}
 #'
 #' @export
 
