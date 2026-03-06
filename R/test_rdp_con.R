@@ -9,8 +9,9 @@
 #' the difference in test information functions (TIFs) between adjacent
 #' next-stage modules to be within a specified tolerance:
 #' \deqn{
-#'   | I_{m_j}(\theta_r) - I_{m_{j+1}}(\theta_r) | \le \text{info\_tol}
+#'   | I_{m_j}(\theta_r) - I_{m_{j+1}}(\theta_r) | \le \tau
 #' }
+#' where \eqn{\tau} is the information tolerance.
 #'
 #' Adjacency is defined **by ordering of modules within the same stage**.
 #' This ensures correct behavior even when some
@@ -186,7 +187,7 @@ test_rdp_con<-function(x,rdp,
                                      rep(seq_len(PoolSize), NumModules), "]")
   decisionvar_name<-x$decisionvar_name
   if(length(decisionvar_name)!=num_decisions){
-    ConstraintMatrix<-ConstraintMatrix[,decisionvar_name]
+    ConstraintMatrix<-ConstraintMatrix[,decisionvar_name,drop = FALSE]
   }
   Specification <- data.frame(Requirement = "(MST structure) RDP",
                               Attribute = "IIF",

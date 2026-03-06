@@ -193,6 +193,8 @@ enemyitem_exclu_con <- function(x) {
   colnames(ConstraintMatrix)<-paste0("x[", rep(seq_len(NumModules), each = PoolSize), ",", rep(seq_len(PoolSize), NumModules), "]")
   if(length(decisionvar_name)!=num_decisions){
     ConstraintMatrix<-ConstraintMatrix[,decisionvar_name,drop = FALSE]
+    rows_not_one <- Matrix::rowSums(ConstraintMatrix)>1L
+    ConstraintMatrix<-ConstraintMatrix[rows_not_one,,drop = FALSE]
   }
 
   return(create_constraint(name = ConstraintMatrix_name,

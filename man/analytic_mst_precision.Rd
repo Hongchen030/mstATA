@@ -6,10 +6,14 @@
 \usage{
 analytic_mst_precision(
   design,
-  icc_by_mod,
-  cut_scale = "score",
-  cuts,
+  exclude_pathways = NULL,
+  assembled_panel,
+  item_par_cols,
+  model_col,
+  D = 1,
+  theta = seq(-3, 3, 0.1),
   range_tcc = c(-5, 5),
+  rdps,
   tol = 1e-04
 )
 }
@@ -20,31 +24,55 @@ the number of modules per stage and may use commas (\code{,}), dashes
 For example, \code{"1-3-3"}, \code{"1,3,3"}, and \code{"1/3/3"} all define
 an MST with 1 module in stage 1, 3 modules in stage 2, and 3 modules in stage 3.}
 
-\item{icc_by_mod}{List of ICC objects indexed by module.
-Each element must be a named list over a common ability grid
-(e.g., \code{"theta=-1"}, \code{"theta=0"}, ...), where each element is an
-item-by-category probability matrix compatible with
-\code{\link{module_score_dist}}.}
+\item{exclude_pathways}{Optional character vector specifying disallowed pathways.
+Each element must be a string of the form \code{"x-y-z"}, where each number
+refers to a module index at the corresponding stage. This is commonly used to
+prohibit extreme transitions (e.g., routing from an easy module directly to
+a hard module).}
 
-\item{cut_scale}{Character string indicating the scale of routing cuts.
-Must be one of \code{"score"} or \code{"theta"}. Default is "score".}
+\item{assembled_panel}{A \code{"mstATA_panel"} object returned by
+\code{\link{assembled_panel}}. All panels share identical module and
+pathway structure.}
 
-\item{cuts}{List of length \code{NumStages - 1}.Each element is a numeric
-vector of internal cuts defining routing thresholds for the next stage.}
+\item{item_par_cols}{A named list defining the IRT parameter columns
+required for each supported model. The list names must exactly match
+the model identifiers specified in \code{model_col} column:
+\code{"1PL"}, \code{"RASCH"}, \code{"2PL"}, \code{"3PL"},
+\code{"4PL"}, \code{"GRM"}, \code{"MGRM"}, \code{"PCM"},
+\code{"GPCM"}, \code{"RSM"}, and \code{"NRM"}.
+Each list element is a character vector giving the column names
+that contain the required item parameters for
+the corresponding model.}
+
+\item{model_col}{A character string specifying the column name in
+either \code{ItemsInModules} or \code{ItemsInPathways} data frames
+that indicates the IRT model used for each item.
+Values in this column must correspond to one of the supported
+model names:
+\code{"1PL"}, \code{"RASCH"}, \code{"2PL"}, \code{"3PL"},
+\code{"4PL"}, \code{"GRM"}, \code{"MGRM"}, \code{"PCM"},
+\code{"GPCM"}, \code{"RSM"}, or \code{"NRM"}.}
+
+\item{D}{Scaling constant used in the IRT model. Default is D=1 (for logistic metric);
+D=1.702 yields approximately the normal metric.}
+
+\item{theta}{Numeric vector specifying the ability grid used to construct
+ICCs. Defaults to \code{seq(-3, 3, 0.1)}.}
 
 \item{range_tcc}{Numeric length-2 vector giving the search interval for
-inverse TCC evaluation (passed to \code{\link{inv_tcc_from_icc}}). Defaults is (-5,5).}
+inverse TCC evaluation. Defaults is (-5,5).}
+
+\item{rdps}{List of routing cuts on the theta scale.}
 
 \item{tol}{A convergence tolerance used for inverse TCC calculations. Default is 1e-4.}
 }
 \value{
 A list with components:
 \itemize{
+\item \code{prefix_table}: prefix-to-module lookup tables by stage
+\item \code{eq_theta}: ITCC estimates for each stage.
 \item \code{cdist_by_mod}: module-level score distributions
 \item \code{joint_dist}: stage-wise joint score distributions by prefix
-\item \code{prefix_table}: prefix-to-module lookup tables by stage
-\item \code{icc_path}: pathway-level ICC objects
-\item \code{inv_theta_by_path}: score-to-theta lookup tables
 \item \code{eval_tb}: data.frame with columns
 \code{theta, mu, sigma2, bias, csem}
 }
@@ -56,9 +84,6 @@ The implementation follows the logic of \code{irtQ::reval_mst()}, propagating
 score distributions stage by stage conditional on true ability \eqn{\theta},
 applying routing rules, and mapping final scores to reported ability estimates
 via inverse test characteristic curves (TCCs).
-
-This function assumes that item- and module-level response category
-probabilities (ICCs) have already been computed on a fixed ability grid.
 }
 \details{
 \strong{1. Recursion-based analytic evaluation}
@@ -70,23 +95,14 @@ The analytic evaluation proceeds in four conceptual steps:
 
 For each module, the conditional score distribution
 \eqn{P(S_m \mid \theta)} is computed from item response category
-probabilities using \code{\link{module_score_dist}}.
+probabilities.
 
 \item \strong{Stage-wise recursion with routing}
 
 Joint (cumulative) score distributions are built recursively across
 stages. At each stage, examinees are deterministically assigned
-to next-stage modules based on their observed cumulative score and the
-predefined score cut points for that stage.
-
-\item \strong{Cut score normalization}:
-
-Routing cut scores are defined at the stage level and shared across all prefixes.
-If \code{cut_scale = "theta"}, cut scores are converted once per prefix to the
-score scale using the prefix-specific test characteristic curve (TCC). These
-cumulative score thresholds may be non-integer; observed
-scores are integers and are compared against the real-valued cut points
-during routing.
+to next-stage modules based on the comparison between their equated number
+correct score and the predefined cut points for that stage.
 
 \item \strong{Exact joint score propagation}
 
@@ -141,7 +157,8 @@ independently for each module using \code{\link{module_score_dist}}.
 Let \eqn{S^{(t)}} denote the cumulative score after stage \eqn{t}.
 At each stage \eqn{t}, examinees are assigned to a
 next-stage module \eqn{m_{t+1}} according to score cut points
-\eqn{c^{(t)}_1, \dots, c^{(t)}_{K_t}} defined on the cumulative score scale.
+\eqn{c^{(t)}_1, \dots, c^{(t)}_{K_t}} based on the comparison between
+the equated number correct score and the cut theta points.
 
 The routing rule can be written as a deterministic mapping
 \deqn{
@@ -203,10 +220,9 @@ and
 }
 
 \references{
-Lim, H., Davey, T., & Wells, C. S. (20201).A recursion-based analytical approach to evaluate the performance of MST.
+Lim, H., Davey, T., & Wells, C. S. (2020).A recursion-based analytical approach to evaluate the performance of MST.
 \emph{Journal of Educational Measurement}, 58(2), 154--178.{doi:10.1111/jedm.12276}
 }
 \seealso{
-\code{\link[=analytic_mst_precision_items]{analytic_mst_precision_items()}},\code{\link[=module_score_dist]{module_score_dist()}},\code{\link[=joint_module_score_dist]{joint_module_score_dist()}},
-\code{\link[=normalize_cut_scores]{normalize_cut_scores()}},\code{\link[=inv_tcc_from_icc]{inv_tcc_from_icc()}}
+\code{\link[=compute_icc]{compute_icc()}},\code{\link[=module_score_dist]{module_score_dist()}},\code{\link[=joint_module_score_dist]{joint_module_score_dist()}},\code{\link[=inv_tcc_from_icc]{inv_tcc_from_icc()}}
 }

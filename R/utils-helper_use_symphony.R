@@ -53,18 +53,14 @@ use_symphony<-function(A,rhs, sense, obj,lb = NULL, ub = NULL,
     message("Symphony reports the model is unbounded.")
     status<-"UNBOUNDED"
   } else if (status == "TM_TIME_LIMIT_EXCEEDED"){
-    if (has_solution) {
-      message("Symphone reached time limit; returning best feasible solution.")
-    } else {
-      message("Symphone reached time limit with no feasible solution.")
-    }
+    message("Symphone reached time limit.")
     status<-"TIME_LIMIT"
   }else {
     message(paste0("Symphony returned status: ", status))
     status<-"OTHER"
   }
 
-  if(has_solution && status %in%c("OPTIMAL","FEASIBLE","TIME_LIMIT")){
+  if(has_solution && status %in%c("OPTIMAL","FEASIBLE")){
     best_solution <- result[["solution"]]
     objval <- result[["objval"]]
     idx <- hard_term_index(varname)

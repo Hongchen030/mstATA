@@ -972,36 +972,36 @@ kable(tab,
 It can be done via `analytic_mst_precision_items()`.
 
 ```{r,echo=FALSE}
-maximin_eval<-analytic_mst_precision_items(design = "1-2-2",cut_scale = "theta",cuts = list(0,0),
-                                           assembled_panel = maximin_panel,
+maximin_eval<-analytic_mst_precision(design = "1-2-2",rdps = list(0,0),
+                                     assembled_panel = maximin_panel,
+                                     item_par_cols = list("2PL"=c("discrimination","difficulty")),
+                                     model_col = "model",D = 1,theta = seq(-3,3,0.1),
+                                     range_tcc = c(-5,5))$Panel_1$eval_tb
+cappedmaximin_eval<-analytic_mst_precision(design = "1-2-2",rdps = list(0,0),
+                                           assembled_panel = capped_maximin_panel,
                                            item_par_cols = list("2PL"=c("discrimination","difficulty")),
                                            model_col = "model",D = 1,theta = seq(-3,3,0.1),
                                            range_tcc = c(-5,5))$Panel_1$eval_tb
-cappedmaximin_eval<-analytic_mst_precision_items(design = "1-2-2",cut_scale = "theta",cuts = list(0,0),
-                                                 assembled_panel = capped_maximin_panel,
-                                                 item_par_cols = list("2PL"=c("discrimination","difficulty")),
-                                                 model_col = "model",D = 1,theta = seq(-3,3,0.1),
-                                                 range_tcc = c(-5,5))$Panel_1$eval_tb
-weightedsum_eval<-analytic_mst_precision_items(design = "1-2-2",cut_scale = "theta",cuts = list(0,0),
-                                               assembled_panel = weighted_sum_panel,
-                                               item_par_cols = list("2PL"=c("discrimination","difficulty")),
-                                               model_col = "model",D = 1,theta = seq(-3,3,0.1),
-                                               range_tcc = c(-5,5))$Panel_1$eval_tb
-unaryminimax_eval<-analytic_mst_precision_items(design = "1-2-2",cut_scale = "theta",cuts = list(0,0),
-                                                assembled_panel = unary_minimax_panel,
-                                                item_par_cols = list("2PL"=c("discrimination","difficulty")),
-                                                model_col = "model",D = 1,theta = seq(-3,3,0.1),
-                                                range_tcc = c(-5,5))$Panel_1$eval_tb
-binaryminimax_eval<-analytic_mst_precision_items(design = "1-2-2",cut_scale = "theta",cuts = list(0,0),
-                                                 assembled_panel = binary_minimax_panel,
-                                                 item_par_cols = list("2PL"=c("discrimination","difficulty")),
-                                                 model_col = "model",D = 1,theta = seq(-3,3,0.1),
-                                                 range_tcc = c(-5,5))$Panel_1$eval_tb
-goalprog_eval<-analytic_mst_precision_items(design = "1-2-2",cut_scale = "theta",cuts = list(0,0),
-                                            assembled_panel = goal_programming_panel,
-                                            item_par_cols = list("2PL"=c("discrimination","difficulty")),
-                                            model_col = "model",D = 1,theta = seq(-3,3,0.1),
-                                            range_tcc = c(-5,5))$Panel_1$eval_tb
+weightedsum_eval<-analytic_mst_precision(design = "1-2-2",rdps = list(0,0),
+                                         assembled_panel = weighted_sum_panel,
+                                         item_par_cols = list("2PL"=c("discrimination","difficulty")),
+                                         model_col = "model",D = 1,theta = seq(-3,3,0.1),
+                                         range_tcc = c(-5,5))$Panel_1$eval_tb
+unaryminimax_eval<-analytic_mst_precision(design = "1-2-2",rdps = list(0,0),
+                                          assembled_panel = unary_minimax_panel,
+                                          item_par_cols = list("2PL"=c("discrimination","difficulty")),
+                                          model_col = "model",D = 1,theta = seq(-3,3,0.1),
+                                          range_tcc = c(-5,5))$Panel_1$eval_tb
+binaryminimax_eval<-analytic_mst_precision(design = "1-2-2",rdps = list(0,0),
+                                           assembled_panel = binary_minimax_panel,
+                                           item_par_cols = list("2PL"=c("discrimination","difficulty")),
+                                           model_col = "model",D = 1,theta = seq(-3,3,0.1),
+                                           range_tcc = c(-5,5))$Panel_1$eval_tb
+goalprog_eval<-analytic_mst_precision(design = "1-2-2",rdps = list(0,0),
+                                      assembled_panel = goal_programming_panel,
+                                      item_par_cols = list("2PL"=c("discrimination","difficulty")),
+                                      model_col = "model",D = 1,theta = seq(-3,3,0.1),
+                                      range_tcc = c(-5,5))$Panel_1$eval_tb
 
 eval_plot<-rbind(maximin_eval,cappedmaximin_eval,weightedsum_eval,
                  unaryminimax_eval,binaryminimax_eval,goalprog_eval)

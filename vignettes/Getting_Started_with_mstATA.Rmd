@@ -237,12 +237,12 @@ modules/pathways.
 
 Psychometric evaluation:
 
-- `plot_panel_tcc()`: plots category probability curves aggregated at the module or pathway level, supports both single-panel and multi-panel visualization.
+- `plot_panel_tcc()`: plots test characteristic curves aggregated at the module or pathway level, supports both single-panel and multi-panel visualization.
 - `plot_panel_tif()`: plots test information functions aggregated at the module or pathway level, supports both single-panel and multi-panel visualization.
 
 Precision and classification: 
 
-- `analytic_mst_precision()`, `analytic_mst_precision_item()`: computes conditional bias and conditional standard error of measurement for MST panels using a recursion-based evaluation method (Lim, 2000). 
+- `analytic_mst_precision()`: computes conditional bias and conditional standard error of measurement for MST panels using a recursion-based evaluation method (Lim, 2000). 
 - `analytic_mst_classification()`: computes classification evaluation criterion using Rudner's method (2000, 2005).
 
 Supporting utilities:
@@ -251,7 +251,6 @@ Supporting utilities:
 - `inv_tcc_from_icc()`: computes ITCC estimates from test characteristic curve. 
 - `module_score_dist()`: computes the conditional distribution of total module scores given a/multiple ability values.
 - `joint_module_score_dist()`: computes the joint (cumulative) score distribution after administering a next-stage module, conditional on routing into a branch defined by a set of reachable previous scores.
-- `normalize_cut_scores()`: converts routing cut scores (theta scale) to the number-correct scale.
 
 ## Summary
 
@@ -264,4 +263,23 @@ Supporting utilities:
 - All constraints can be inspected prior to solving
 
 - Infeasibility diagnostics are available
+
+- Bonus: An item–module eligibility set can be specified to filter the active binary decision variables. In addition, explicitly providing objective values can further improve the computational efficiency of the mixed-integer linear programming formulation.
+
+**References**
+
+Lim, H., Davey, T., & Wells, C. S. (2020).  
+*A recursion-based analytical approach to evaluate the performance of MST.*  
+Journal of Educational Measurement, 58(2), 154–178.  
+https://doi.org/10.1111/jedm.12276
+
+Rudner, L. M. (2000). 
+*Computing the expected proportions of misclassified examinees.*
+Practical Assessment, Research, and Evaluation, 7(1).
+https://doi.org/10.7275/an9m-2035
+
+Rudner, L. M. (2005). 
+*Expected classification accuracy.*
+Practical Assessment, Research, and Evaluation, 10(1).
+https://doi.org/10.7275/56a5-6b14
 

@@ -75,14 +75,11 @@ The total number of constraints depends on the application level:
 \item \strong{Module-level:} when \code{which_module} is provided,
 or both \code{which_module} and \code{which_pathway} are \code{NULL}
 
-\if{html}{\out{<div class="sourceCode">}}\preformatted{    Number of constraints = \\strong\{(# modules) × side\}
-}\if{html}{\out{</div>}}
+Number of constraints = \strong{(# modules) × side}
 
 \item \strong{Pathway-level:} when \code{which_pathway} is provided and \code{which_module = NULL}
 
-\if{html}{\out{<div class="sourceCode">}}\preformatted{    Number of constraints = \\strong\{ (# pathways) × side\}
-}\if{html}{\out{</div>}}
-
+Number of constraints = \strong{ (# pathways) × side}
 }
 
 Here, \code{side = 2} for range constraints (lower + upper bound) and
@@ -121,8 +118,8 @@ Interpretation:
 When only \code{target} and \code{deviation} are provided:
 
 \deqn{
-  \text{min} = \text{target} - \text{deviation}, \qquad
-  \text{max} = \text{target} + \text{deviation}.
+  min = target - deviation, \qquad
+  max = target + deviation.
 }
 }
 \section{Mathematical Formulation}{

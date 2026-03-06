@@ -68,7 +68,6 @@ use_lpsolve<-function(A,rhs, sense, obj,lb, ub,
            `13` = "NOFEASFOUND")
   status <- unname(map[as.character(result)])
 
-  has_solution<-TRUE
   if (status == "OPTIMAL") {
     message("lpsolve found an optimal solution.")
   } else if (status == "SUBOPTIMAL") {
@@ -79,12 +78,7 @@ use_lpsolve<-function(A,rhs, sense, obj,lb, ub,
   } else if (status == "UNBOUNDED") {
     message("lpsolve reports the model is unbounded.")
   } else if(status == "TIMEOUT"){
-    has_solution<-!is.null(lpSolveAPI::get.variables(L)) && is.finite(lpSolveAPI::get.objective(L))
-    if (has_solution) {
-      message("lpsolve reached time limit; returning best feasible solution.")
-    } else {
-      message("lpsolve reached time limit with no feasible solution.")
-    }
+    message("lpsolve reached time limit.")
     status<-"TIME_LIMIT"
   }else{
     message(paste0("lpsolve returned status: ", status))
@@ -92,7 +86,7 @@ use_lpsolve<-function(A,rhs, sense, obj,lb, ub,
   }
 
 
-  if(has_solution && status%in%c("OPTIMAL","FEASIBLE","TIME_LIMIT")){
+  if(status%in%c("OPTIMAL","FEASIBLE")){
     objval<-lpSolveAPI::get.objective(L)
     best_solution<-lpSolveAPI::get.variables(L)
     idx <- hard_term_index(varname)

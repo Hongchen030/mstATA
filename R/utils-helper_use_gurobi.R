@@ -52,18 +52,14 @@ use_gurobi<-function(A,rhs, sense, obj,lb, ub,
   } else if (raw_status == "UNBOUNDED") {
     message("gurobi reports the model is unbounded.")
   } else if (raw_status == "TIME_LIMIT") {
-    if (has_solution) {
-      message("Gurobi reached time limit; returning best feasible solution.")
-    } else {
-      message("Gurobi reached time limit with no feasible solution.")
-    }
+    message("Gurobi reached time limit.")
   } else {
     message(paste0("gurobi returned status: ", status))
     status<-"OTHER"
   }
 
 
-  if (has_solution && status %in% c("OPTIMAL", "FEASIBLE", "TIME_LIMIT")) {
+  if (has_solution && status %in% c("OPTIMAL", "FEASIBLE")) {
     best_solution <- result$x
     solution_list <-result$pool
     objval <- result$objval

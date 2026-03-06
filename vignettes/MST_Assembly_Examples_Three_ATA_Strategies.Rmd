@@ -22,6 +22,7 @@ knitr::opts_chunk$set(
 library(mstATA)
 library(kableExtra)
 library(highs)
+library(ggformula)
 library(ggplot2)
 ```
 
@@ -50,9 +51,9 @@ The purpose of this vignette is not only to reproduce assembly results, but to h
 
 ## Item pool
 
-The pool contains: 400 dichotomous 3PL items; 20 GPCM items and 20 GRM items.
+The pool contains: 400 dichotomous 3PL items; 20 GPCM items and 20 GRM items. 127 items for content 1, 96 items for content 2, 103 items for content 3 and 114 items for content 4.
 
-Each item includes: categorical attribute (model, content area) and continuous attribute (response time)
+Each item includes: categorical attribute (model, content area) and continuous attribute (IRT parameters, response time).
 
 ```{r}
 data("Rmst_pool")
@@ -61,6 +62,34 @@ content_categories<-c("1","2","3","4")
 item_par_cols<-list("3PL"=c("a","b","c"),
                     "GPCM" = c("alpha","delta1","delta2","delta3"),
                     "GRM" = c("alpha","beta1","beta2"))
+```
+
+```{r,echo=FALSE}
+tab <- data.frame(
+  Attribute = c("3PL: a","3PL: b","3PL: c",
+                "GRM: alpha","GRM: beta1","GRM: beta2",
+                "GPCM: alpha","GPCM: delta1","GPCM: delta2","GPCM: delta3",
+                "Response Time"),
+  Mean = NA_real_,
+  SD = NA_real_,
+  Min = NA_real_,
+  Max = NA_real_
+)
+tab[1:3,2:5]<-df_stats(~a+b+c,
+                       data = Rmst_pool[Rmst_pool$model=="3PL",],
+                       mean,sd,min,max)[,2:5]
+tab[4:6,2:5]<-df_stats(~alpha+beta1+beta2,
+                       data = Rmst_pool[Rmst_pool$model=="GRM",],
+                       mean,sd,min,max)[,2:5]
+tab[7:10,2:5]<-df_stats(~alpha+delta1+delta2+delta3,
+                        data = Rmst_pool[Rmst_pool$model=="GPCM",],
+                        mean,sd,min,max)[,2:5]
+tab[11,2:5]<-df_stats(~time,data = Rmst_pool,mean,sd,min,max)[,2:5]
+tab[,2:5]<-round(tab[,2:5],digits = 2)
+kable(tab,
+      caption = "Descriptive statistics for item quantitative attributes.",
+      col.names = c("Attribute", "Mean", "SD", "Min", "Max"),
+      align = c("l","r", "r", "r", "r"))
 ```
 
 ## Example
@@ -197,12 +226,12 @@ plot_panel_tif(assembled_panel = TD12_panel,
                theta = seq(-3,3,0.1),
                unit = "pathway",mode = "within_panel")
 # analytic evaluation
-TD12_precision<-analytic_mst_precision_items(design = "1-2",assembled_panel = TD12_panel,
-                                             item_par_cols = item_par_cols,
-                                             model_col = "model",
-                                             theta = seq(-3,3,0.1),
-                                             range_tcc = c(-5,5),
-                                             cuts = list(0),cut_scale = "theta")
+TD12_precision<-analytic_mst_precision(design = "1-2",assembled_panel = TD12_panel,
+                                       item_par_cols = item_par_cols,
+                                       model_col = "model",
+                                       theta = seq(-3,3,0.1),
+                                       range_tcc = c(-5,5),
+                                       rdps  = list(0))
 TD12_bias_CSEM_panel1<-TD12_precision$Panel_1$eval_tb
 TD12_bias_CSEM_panel2<-TD12_precision$Panel_2$eval_tb
 TD12_bias_CSEM_panel1[,"Panel"]<-"Panel_1"
@@ -652,3 +681,8 @@ plot_panel_tif(assembled_panel = Hy13_panel,
 
 ```
 
+## Summary
+
+This vignette demonstrates how the **mstATA** package can be used to assemble multistage testing (MST) panels using three common strategies: **bottom-up**, **top-down**, and **hybrid** assembly. The examples illustrate how the package provides flexibility in constructing linear constraints for specification requirements that may be enforced at different levels of the test design, including the **module**, **pathway**, **panel**, and **solution** levels. By formulating these requirements within a unified mixed-integer linear programming (MILP) framework, `mstATA` enables test developers to adapt assembly strategies to different operational needs while maintaining transparent and reproducible specifications.
+
+Additional examples comparing bottom-up, top-down, and hybrid assembly strategies under the same set of specifications (but enforced at different levels) can be found in the author's PhD dissertation, which will be available through ProQuest in May 2026.

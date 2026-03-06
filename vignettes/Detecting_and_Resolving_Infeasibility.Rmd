@@ -695,7 +695,7 @@ In the additive approach (ADD), the analysis starts with an unconstrained model 
 
 In the `mstATA` package, both approaches can be implemented via `check_comblock_feasibility()` function, which evaluates the feasibility of models constructed from multiple specifications.
 
-### Reformulate Using Goal Programming and Slack Varaibles
+### Reformulate Using Goal Programming and Slack Variables
 
 The `solve_with_slack` function is designed to recover feasibility for an infeasible `mstATA_model` by selectively relaxing non-core constraint blocks through the introduction of slack variables with user-specified penalties. Core constraint blocks include objective-related constraints, essential MST structure constraints (e.g., module- and pathway-level item count constraints, optional TIF constraints for routing decision points), logical constraints (such as enemy relationships, item–stimulus grouping relationships, and within-panel item exposure control), as well as equality constraints (i.e., constraints with = operators). All other constraint blocks are treated as non-core and are eligible for relaxation.
 

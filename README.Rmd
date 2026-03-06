@@ -16,6 +16,7 @@ knitr::opts_chunk$set(
 # mstATA
 
 <!-- badges: start -->
+[![R-CMD-check](https://github.com/Hongchen030/mstATA/actions/workflows/R-CMD-check.yaml/badge.svg)](https://github.com/Hongchen030/mstATA/actions/workflows/R-CMD-check.yaml)
 <!-- badges: end -->
 
 The goal of mstATA is to ...
@@ -40,7 +41,7 @@ remotes::install_github("Hongchen030/mstATA")
 
 Gurobi – requires separate installation and a valid license.
 Installation instructions are available here:
-https://cran.r-project.org/web/packages/prioritizr/vignettes/gurobi_installation_guide.html
+https://CRAN.R-project.org/package=prioritizr. See the prioritizr package vignette “gurobi_installation_guide” for installation instructions.
 Gurobi requires a valid license. However, free academic licenses are available for qualified students and researchers through the Gurobi Academic Program.
 
 HiGHS – available on CRAN via install.packages("highs")

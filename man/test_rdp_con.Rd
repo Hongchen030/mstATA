@@ -49,8 +49,9 @@ For each routing decision point \eqn{\theta_{rdp}}, this function constrains
 the difference in test information functions (TIFs) between adjacent
 next-stage modules to be within a specified tolerance:
 \deqn{
-  | I_{m_j}(\theta_r) - I_{m_{j+1}}(\theta_r) | \le \text{info\_tol}
+  | I_{m_j}(\theta_r) - I_{m_{j+1}}(\theta_r) | \le \tau
 }
+where \eqn{\tau} is the information tolerance.
 
 Adjacency is defined \strong{by ordering of modules within the same stage}.
 This ensures correct behavior even when some

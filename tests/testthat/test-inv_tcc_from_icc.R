@@ -1,122 +1,141 @@
-test_that("inv_tcc_from_icc errors on invalid inputs", {
 
-  expect_error(
-    inv_tcc_from_icc(NULL, 3),
-    "non-empty list"
+
+
+
+
+test_that("inv_tcc_from_icc works for dichotomous items (3PL)", {
+
+  set.seed(123)
+
+  items <- data.frame(
+    a = runif(10, 0.8, 1.5),
+    b = rnorm(10),
+    g = rep(0.2, 10),
+    model = rep("3PL", 10)
   )
 
-  expect_error(
-    inv_tcc_from_icc(list(a = 1), NA),
-    "single non-missing numeric"
+  item_par_cols <- list(
+    "3PL" = c("a","b","g")
   )
 
-  expect_error(
-    inv_tcc_from_icc(list(a = 1), 3),
-    "must be of the form"
+  res <- inv_tcc_from_icc(
+    items = items,
+    item_par_cols = item_par_cols,
+    model_col = "model"
   )
+
+  expect_s3_class(res, "data.frame")
+  expect_true(all(c("sum.score","est.theta") %in% names(res)))
+
+  expect_equal(res$sum.score, 0:10)
+
+  expect_true(all(is.finite(res$est.theta)))
+
+  expect_true(all(diff(res$est.theta) >= 0))
+
 })
 
-make_icc_list <- function(theta_grid,
-                          a = 1,
-                          b = 0,
-                          g = 0.2,
-                          n_items = 10) {
-  items<-data.frame(a=rep(a,n_items),b=rep(b,n_items),g=rep(g,n_items),
-                    model = rep("3PL",n_items))
-  icc_list <- compute_icc(items = items,item_par_cols = list("3PL"=c("a","b","g")),
-                          theta = theta_grid,model_col = "model")
-  return(icc_list)
-}
+test_that("inv_tcc_from_icc works for polytomous items (GRM)", {
 
-test_that("inv_tcc_from_icc correctly inverts TCC for interior scores", {
+  set.seed(123)
 
-  theta_grid <- seq(-5, 5, length.out = 101)
-  icc_list <- make_icc_list(theta_grid)
-
-  # choose a theta away from boundaries
-  theta_true <- 0.8
-
-
-  score_true <- expected_score(icc_list,target_theta = theta_true)
-
-  theta_hat <- inv_tcc_from_icc(
-    icc_list = icc_list,
-    target_score = score_true,
-    range_tcc = c(-5, 5)
+  items <- data.frame(
+    a = runif(5, 0.8, 1.5),
+    b1 = rnorm(5),
+    b2 = rnorm(5),
+    b3 = rnorm(5),
+    model = rep("GRM",5)
   )
 
-  expect_true(is.finite(theta_hat))
-  expect_equal(theta_hat, theta_true, tolerance = 0.15)
+  item_par_cols <- list(
+    "GRM" = c("a","b1","b2","b3")
+  )
+
+  res <- inv_tcc_from_icc(
+    items = items,
+    item_par_cols = item_par_cols,
+    model_col = "model"
+  )
+
+  expect_s3_class(res, "data.frame")
+
+  expect_true(all(diff(res$est.theta) >= 0))
+
+  expect_true(min(res$est.theta) >= -5)
+  expect_true(max(res$est.theta) <= 5)
+
 })
 
-test_that("inv_tcc_from_icc interpolates below guessing floor correctly", {
+test_that("inv_tcc_from_icc works for mixed item formats", {
 
-  theta_grid <- seq(-5, 5, length.out = 101)
-  g <- 0.23
-  icc_list <- make_icc_list(theta_grid, g = g)
+  set.seed(123)
 
-  # guessing floor
-  exp_scores <- vapply(icc_list, expected_score, numeric(1))
-  G <- min(exp_scores)
-  X <- ceiling(G)
-
-  # theta_X from inverse TCC
-  theta_X <- inv_tcc_from_icc(
-    icc_list = icc_list,
-    target_score = X,
-    range_tcc = c(-5, 5)
+  items <- data.frame(
+    a = c(runif(5,0.8,1.5), runif(3,0.6,1.2)),
+    b = c(rnorm(5), rep(NA,3)),
+    g = c(rep(0.2,5), rep(NA,3)),
+    b1 = c(rep(NA,5), rnorm(3)),
+    b2 = c(rep(NA,5), rnorm(3)),
+    model = c(rep("3PL",5), rep("GRM",3))
   )
 
-  # score below guessing floor
-  Y <- 0
-
-  theta_hat <- inv_tcc_from_icc(
-    icc_list = icc_list,
-    target_score = Y,
-    range_tcc = c(-5, 5)
+  item_par_cols <- list(
+    "3PL" = c("a","b","g"),
+    "GRM" = c("a","b1","b2")
   )
 
-  theta_expected <- -5 + (Y / X) * (theta_X + 5)
+  res <- inv_tcc_from_icc(
+    items = items,
+    item_par_cols = item_par_cols,
+    model_col = "model"
+  )
 
-  expect_equal(theta_hat, theta_expected, tolerance = 1e-8)
+  expect_s3_class(res,"data.frame")
+
+  expect_true(all(diff(res$est.theta) >= 0))
+
+  expect_true(length(res$sum.score) > 0)
+
 })
 
-test_that("inv_tcc_from_icc saturates at upper bound for large scores", {
+test_that("inverse TCC roughly matches expected score", {
 
-  theta_grid <- seq(-5, 5, length.out = 101)
-  icc_list <- make_icc_list(theta_grid, g = 0.2)
+  set.seed(123)
 
-  theta_hat <- inv_tcc_from_icc(
-    icc_list = icc_list,
-    target_score = 999,
-    range_tcc = c(-5, 5)
+  items <- data.frame(
+    a = runif(8,0.8,1.5),
+    b = rnorm(8),
+    g = rep(0.2,8),
+    model = rep("3PL",8)
   )
 
-  expect_equal(theta_hat, 5)
-})
+  item_par_cols <- list(
+    "3PL" = c("a","b","g")
+  )
 
-test_that("inv_tcc_from_icc is monotone increasing in score", {
+  res <- inv_tcc_from_icc(
+    items,
+    item_par_cols,
+    "model"
+  )
 
-  theta_grid <- seq(-5, 5, length.out = 101)
-  icc_list <- make_icc_list(theta_grid, g = 0.2)
+  theta <- res$est.theta
 
-  scores <- 0:15
-  thetas <- vapply(
-    scores,
-    function(s) inv_tcc_from_icc(
-      icc_list = icc_list,
-      target_score = s,
-      range_tcc = c(-5, 5)
-    ),
+  icc <- compute_icc(
+    items = items,
+    item_par_cols = item_par_cols,
+    theta = theta,
+    model_col = "model"
+  )
+
+  score_vec <- 0:(ncol(icc[[1]])-1)
+
+  tcc <- vapply(
+    icc,
+    function(m) sum(m %*% score_vec),
     numeric(1)
   )
 
-  expect_true(all(diff(thetas) >= -1e-8))
+  expect_true(mean(abs(tcc - res$sum.score)) < 0.5)
+
 })
-
-
-
-
-
-
-

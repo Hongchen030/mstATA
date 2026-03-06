@@ -105,7 +105,7 @@ constraint matrices, decision variables, and bounds.
 The constraint system is represented as:
 
 \deqn{
-  A_B x_B + A_C x_C \; (\text{operator}) \; b
+  A_B x_B + A_C x_C \; (\mathrm{op}) \; b
 }
 
 where \eqn{x_B} are binary decision variables and \eqn{x_C} are continuous

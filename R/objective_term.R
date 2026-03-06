@@ -28,7 +28,7 @@
 #' The function supports two types of objectives:
 #' \itemize{
 #'   \item \strong{Relative objective} – maximize or minimize \eqn{a^\top x}.
-#'   \item \strong{Absolute deviation objective} – minimize \eqn{|a^\top x - \text{goal}|}.
+#'   \item \strong{Absolute deviation objective} – minimize \eqn{|a^\top x - g|} where \eqn{g} is the target value.
 #' }
 #'
 #' @param x An object of class `"mstATA_design"` created by [mst_design()].
@@ -51,7 +51,7 @@
 #'   For absolute deviation objectives, `"min"` is enforced automatically.
 #' @param goal Optional numeric scalar. If supplied, the objective minimizes the
 #'   absolute deviation from the target:
-#'   \deqn{ |a^\top x - \text{goal}| }
+#'   \eqn{ |a^\top x - g| } where \eqn{g} is the target value.
 #'   If `NULL`, a standard maximize/minimize objective is created.
 #'
 #' @details

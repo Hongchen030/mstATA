@@ -33,7 +33,7 @@ use_glpk<-function(A,rhs, sense, obj,lb, ub,
 
   has_solution<-!is.null(result$solution) && is.finite(result$optimum)
   raw_status<-result$status
-  if(raw_status==4){
+  if(raw_status%in%c(3,4)){
     message("GLPK reports the model is infeasible.")
     status<-"INFEASIBLE"
   }else if (raw_status==5) {
@@ -45,20 +45,18 @@ use_glpk<-function(A,rhs, sense, obj,lb, ub,
   } else if (raw_status==6) {
     message("GLPK reports the model is unbounded.")
     status<-"UNBOUNDED"
-  } else if (runtime >= (params$tm_limit - 0.05) & raw_status==3){
-    status<-"TIME_LIMIT"
-    if (has_solution) {
-      message("GLPK reached time limit; returning best feasible solution.")
-    } else {
-      message("GLPK reached time limit with no feasible solution.")
-    }
   }else{
-    status<-"OTHER"
-    message(paste0("GLPK returned status: ", status))
+    if (runtime >= params$tm_limit/1000){
+      status<-"TIME_LIMIT"
+      message("GLPK reached time limit.")
+    }else{
+      status<-"OTHER"
+      message(paste0("GLPK returned status: ", status))
+    }
   }
 
 
-  if(status%in%c("OPTIMAL","FEASIBLE","TIME_LIMIT")){
+  if(has_solution && status%in%c("OPTIMAL","FEASIBLE")){
     objval<-result$optimum
     best_solution <- result$solution
     idx <- hard_term_index(varname)

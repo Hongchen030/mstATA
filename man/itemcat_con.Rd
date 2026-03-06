@@ -157,28 +157,22 @@ Suppose there are \eqn{M} modules in an MST panel. Let
 
 In specified module m: for all \eqn{i_s} specified in \code{item_ids}
 
-\deqn{
-  x_{i_s, m} = 1 \quad (\text{selected}), \qquad
-  x_{i_s, m} = 0 \quad (\text{not selected}), \qquad
-}
+\eqn{x_{i_s,m} = 1} if item \eqn{i_s} must be selected in module m.
+\eqn{x_{i_s,m} = 0} if item \eqn{i_s} must not be selected in module m.
 
 \strong{2. Pathway-level item selection/not selection}
 
 In specified pathway r:  for all \eqn{i_s} specified in \code{item_ids}
 
-\deqn{
-  \sum_{m \in r} x_{i_s, m} = 1 \quad (\text{selected}), \qquad
-  \sum_{m \in r} x_{i_s, m} = 0 \quad (\text{not selected}), \qquad
-}
+\eqn{\sum_{m \in r} x_{i_s,m} = 1} if item \eqn{i_s} must be selected in pathway r.
+\eqn{\sum_{m \in r} x_{i_s,m} = 0} if item \eqn{i_s} must not be selected in pathway r.
 
 \strong{3. Panel-level item selection/not selection}
 
 In a panel: for all \eqn{i_s} specified in \code{item_ids}
 
-\deqn{
-  \sum_{m} x_{i_s, m} = 1 \quad (\text{selected}), \qquad,
-  \sum_{m} x_{i_s, m} = 0 \quad (\text{not selected}), \qquad
-}
+\eqn{\sum_{m} x_{i_s,m} = 1} if item \eqn{i_s} must be selected in a panel.
+\eqn{\sum_{m} x_{i_s,m} = 0} if item \eqn{i_s} must not be selected in a panel.
 
 Here:
 \itemize{

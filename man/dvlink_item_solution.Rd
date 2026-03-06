@@ -90,7 +90,8 @@ Item-specific reuse limits may be supplied through:
 }
 
 The total number of constraints generated is always
-\eqn{2 \times \text{PoolSize}}, corresponding to one minimum and one maximum
+\eqn{2 \times P} where \eqn{P} is the pool size,
+corresponding to one minimum and one maximum
 constraint per item.
 }
 \section{Mathematical Formulation}{
@@ -110,27 +111,13 @@ there are \eqn{P} panels assembled in one solution. Let
 
 \strong{Decision variable set 1: item-module-panel selection variables}
 
-For each item \eqn{i_s},
-
-\deqn{
-  x_{i_s,m,p} =
-  \begin{cases}
-    1, & \text{if item } i_s \text{ is selected in module } m \text{ of panel } p, \\
-    0, & \text{otherwise}.
-  \end{cases}
-}
+For each item \eqn{i_s}, \eqn{x_{i_s,m,p} = 1} if item \eqn{i_s} is selected in module m of panel p.
+\eqn{x_{i_s,m,p} = 0} otherwise.
 
 \strong{Decision variable set 2: solution-level item indicators}
 
-For each item \eqn{i_s},
-
-\deqn{
-  s_{i_s} =
-  \begin{cases}
-    1, & \text{if item } i_s \text{ is used in any module in any panel}, \\
-    0, & \text{otherwise}.
-  \end{cases}
-}
+For each item \eqn{i_s}, \eqn{s_{i_s} = 1} if item \eqn{i_s} is used in any module in any panel.
+\eqn{s_{i_s} = 0} otherwise.
 
 \strong{Number of times item i is selected in a solution}
 
@@ -141,7 +128,7 @@ For each item \eqn{i_s},
 This constraints enforce:
 
 \deqn{
-  \text{min\_use}_i \, s_{i_s} \le u_i \le \text{max\_use}_i \, s_{i_s},
+  m_i^{\min} \, s_{i_s} \le u_i \le m_i^{\max} \, s_{i_s},
 }
 
 ensuring consistency between panel-level selections and solution-level
@@ -152,7 +139,7 @@ where:
 \item \eqn{x_{i_s,m,p}} indicates whether item \eqn{i_s} is selected in module
 \eqn{m} of panel \eqn{p};
 \item \eqn{s_{i_s}} indicates whether item \eqn{i_s} is used anywhere in the solution;
-\item \eqn{\text{min\_use}_i} and \eqn{\text{max\_use}_i} are item-specific
+\item \eqn{m_i^{\min}} and \eqn{m_i^{\max}} are item-specific
 reuse bounds.
 }
 

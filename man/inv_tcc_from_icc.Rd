@@ -2,41 +2,78 @@
 % Please edit documentation in R/inv_tcc_from_icc.R
 \name{inv_tcc_from_icc}
 \alias{inv_tcc_from_icc}
-\title{Inverse test characteristic curve from ICCs}
+\title{Inverse test characteristic curve}
 \usage{
-inv_tcc_from_icc(icc_list, target_score, range_tcc = c(-5, 5), tol = 1e-04)
+inv_tcc_from_icc(
+  items,
+  item_par_cols,
+  model_col,
+  D = 1,
+  range_tcc = c(-5, 5),
+  tol = 1e-04
+)
 }
 \arguments{
-\item{icc_list}{A named list of item category probability
-matrices across a grid of ability values. Each element corresponds to
-one ability level and must be named \code{"theta=<value>"}. Rows
-represent items and columns represent response categories
-(\code{cat0}, \code{cat1}, \dots). Can be created by \code{compute_icc()}.}
+\item{items}{A data frame containing item metadata.
+Each row represents an item. The data frame must include a column
+specifying the item model (see \code{model_col}) and the parameter
+columns referenced in \code{item_par_cols}.}
 
-\item{target_score}{A numeric value giving the target expected total
-score for which the inverse TCC is to be computed.}
+\item{item_par_cols}{A named list defining the IRT parameter columns
+required for each supported model. The list names must exactly match
+the model identifiers specified in \code{items[[model_col]]}:
+\code{"1PL"}, \code{"RASCH"}, \code{"2PL"}, \code{"3PL"},
+\code{"4PL"}, \code{"GRM"}, \code{"MGRM"}, \code{"PCM"},
+\code{"GPCM"}, \code{"RSM"}, and \code{"NRM"}.
+Each list element is a character vector giving the column names
+in \code{items} that contain the required item parameters for
+the corresponding model.}
+
+\item{model_col}{A character string specifying the column name in
+\code{items} that indicates the IRT model used for each item.
+Values in this column must correspond to one of the supported
+model names:
+\code{"1PL"}, \code{"RASCH"}, \code{"2PL"}, \code{"3PL"},
+\code{"4PL"}, \code{"GRM"}, \code{"MGRM"}, \code{"PCM"},
+\code{"GPCM"}, \code{"RSM"}, or \code{"NRM"}.}
+
+\item{D}{Scaling constant used in the IRT model. Default is D=1 (for logistic metric);
+D=1.702 yields approximately the normal metric.}
 
 \item{range_tcc}{A numeric vector of length two specifying the lower
-and upper bounds of the ability interval used for inversion.
-Defaults to \code{c(-5, 5)}.}
+and upper bounds of the theta search interval. The estimated theta
+values are constrained within this range. Defaults to \code{c(-5, 5)}.}
 
 \item{tol}{A numeric tolerance passed to the root-finding algorithm.
 Smaller values yield more precise solutions at increased
 computational cost. Default is 1e-4.}
 }
 \value{
-A single numeric value giving the ability
-such that the expected module score at this ability equals the
-target score, up to numerical tolerance.
+A data frame with two columns:
+\describe{
+\item{sum.score}{All possible observed total scores.}
+\item{est.theta}{Estimated theta corresponding to each total score.}
+}
 }
 \description{
-Numerically inverts a module test characteristic curve (TCC) to obtain the ability
-corresponding to a given observed total score.
+Computes the inverse Test Characteristic Curve (TCC) by mapping each
+possible observed total score to its corresponding estimated ability
+value (\eqn{\theta}). The inversion is performed numerically using a
+dense theta grid and root-finding.
+
+The function supports mixed-format tests, including dichotomous
+(e.g., 1PL, 2PL, 3PL, 4PL) and polytomous models
+(e.g., GRM, PCM, GPCM, RSM, NRM), provided the required item parameters
+are correctly specified in \code{item_par_cols}.
+
+For models with guessing (e.g., 3PL/4PL), scores below the lower
+asymptote are handled using linear interpolation toward the lower
+bound specified by \code{range_tcc}.
 }
 \section{Mathematical Formulation}{
 
 
-Consider a module consisting of \eqn{I} items. Let the score for item
+Consider \eqn{I} items are taken by an examinee. Let the score for item
 \eqn{i} be a discrete random variable \eqn{Y_i} taking values
 \eqn{\{0, 1, \dots, m\}}, where \eqn{m} is the maximum item score
 for item i. Conditional on ability \eqn{\theta}, item
@@ -72,8 +109,7 @@ T(\hat{\theta}) = s^\ast.
 
 Because \eqn{T(\theta)} generally has no closed-form inverse, this
 function evaluates \eqn{T(\theta)} on a grid of ability values using
-ICCs and constructs a continuous approximation via linear
-interpolation. A root-finding algorithm is then used to solve
+ICCs. A root-finding algorithm is then used to solve
 
 \deqn{
 T(\theta) - s^\ast = 0
@@ -133,22 +169,27 @@ conditional standard errors of measurement.
 }
 
 \examples{
-# Example with two dichotomous items and two theta values
-items<-data.frame(discrimination = c(1,1),difficulty = c(-1,0),model= rep("2PL",2))
+# Example with dichotomous items (guessing is not allowed)
+items<-data.frame(discrimination = c(1,1),difficulty = c(-1,0),
+                  model= rep("2PL",2))
+inv_tcc_from_icc(items = items,
+item_par_cols = list("2PL"=c("discrimination","difficulty")),
+                 model_col = "model",range_tcc = c(-5,5))
 
-icc_list<-compute_icc(items = items,
-                      item_par_cols = list("2PL"=c("discrimination","difficulty")),
-                      theta = seq(-5,5,0.1),model_col = "model")
-
-inv_tcc_from_icc(icc_list, target_score = 1)
-
-# Example with two dichotomous items, (guessing is allowed)
+# Example with dichotomous items, (guessing is allowed)
 items<-data.frame(discrimination = c(1,1),difficulty = c(-1,0),guessing = c(0.2, 0.2),
                   model= rep("3PL",2))
-icc_list<-compute_icc(items = items,
-                      item_par_cols = list("3PL"=c("discrimination","difficulty","guessing")),
-                      theta = seq(-5,5,0.1),
-                      model_col = "model")
-inv_tcc_from_icc(icc_list, target_score = 0)
+inv_tcc_from_icc(items = items,
+ item_par_cols = list("3PL"=c("discrimination","difficulty","guessing")),
+                 model_col = "model", range_tcc = c(-5,5))
+
+# Example with polytomous items
+items <- data.frame(alphaj = c(1.169,1.052,0.828,0.892,0.965),
+                    betaj1 = c(-0.006,-2.405,-0.799,-1.148,-0.299),
+                    betaj2 = c(0.487,1.125,0.764,-0.289,1.512),
+                    model = rep("GRM",5))
+inv_tcc_from_icc(items = items,
+item_par_cols = list("GRM"=c("alphaj","betaj1","betaj2")),
+                 model_col = "model", range_tcc = c(-5,5))
 
 }

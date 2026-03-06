@@ -83,10 +83,14 @@ Third, bounds on the sum of item-level quantitative attributes associated with a
 
 ## Functions
 
-Stimulus-level constraints:
+Stimulus-related constraints:
+
+**Stimulus-level**
 
 - `stimcat_con()`: constrain a stimulus must or must not be selected.
 - `stimquant_con()`: constrain quantitative attribute for a stimulus to be selected.
+
+**Itemset-level** (items linked to the same stimulus)
 
 - `stim_itemcount_con()`: constrain the min/exact/max number of items selected conditional on the
 selection of a stimulus.
@@ -94,14 +98,20 @@ selection of a stimulus.
 conditional on the selection of a stimulus.
 - `stim_itemquant_con()`: constrain the min/exact/max values for the sum of item quantitative attribute values within a selected stimulus.
 
+**Module-/Pathway-level**
+
 - `test_stimcount_con()`: constrain the min/equal/max number of stimuli in a module or a
 pathway.
 - `test_stimcat_con()`: constrain the min/equal/max number of stimuli from specific
 categories in a module or pathway.
 - `test_stimquant_con()`: constrain the min/equal/max for the sum of the stimulus quantitative attribute in a module or pathway.
 
+**Panel-level**
+
 - `panel_stimcat_con()`: constrain the min/equal/max number of stimuli from specific
 categories within a panel.
+
+**Solution-level**
 
 - `solution_stimcount_con()`: constraint the min/equal/max number of unique stimuli across multiple panels.
 - `solution_stimcat_con()`: constrain the min/equal/max number of unique stimuli from specific categories across multiple panels.
@@ -298,8 +308,7 @@ The model contains 2,146 linear constraints. Using HiGHS as the solver, an optim
 ```{r}
 # It is not executed in the vignette to avoid long build times.
 # \dontrun{
-# mst_result<-solve_model(model_spec = mst_model,solver = "HiGHS",check_feasibility = FALSE,time_limit = 5*60,
-#                        show_progress = FALSE)
+# mst_result<-solve_model(model_spec = mst_model,solver = "HiGHS",time_limit = 5*60)
 # reading_panel<-assembled_panel(x = mst_123,result = mst_result)
 # }
 ```
@@ -394,3 +403,9 @@ plot_panel_tif(assembled_panel = reading_panel,item_par_cols = item_par_cols,
 
 - Natural support for stimulus-level and within-stimulus constraints
 
+**Reference**
+
+van der Linden, W. J. (2000). 
+*Optimal assembly of tests with item set.*
+Applied Psychological Measurement, 24(3), 225–240. 
+https://doi.org/10.1177/01466210022031697

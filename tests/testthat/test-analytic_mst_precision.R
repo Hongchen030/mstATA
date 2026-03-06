@@ -7,12 +7,12 @@ check_all1 <- function(mat, tol = 1e-4) {
 
 
 test_that("analytic_mst_precision preserves probability mass", {
-  cuts<-list(c(-0.5,0.5),c(-1,1))
+  rdps<-list(c(-0.5,0.5),c(-1,1))
   ItemsInModules<-mini_itempool[1:16,]
   ItemsInModules[,"module_id"]<-c(rep(1,4),rep(c(2,3,4,5,6,7),each=2))
   assembled_panel<-list(`Panel 1` = list(ItemsInModules = ItemsInModules,ItemsInPathways = NULL))
   class(assembled_panel)<-"mstATA_panel"
-  out <- analytic_mst_precision_items(
+  out <- analytic_mst_precision(
     design = "1-3-3",
     assembled_panel = assembled_panel,
     item_par_cols = list("3PL"=c("discrimination","difficulty","guessing")),
@@ -20,8 +20,7 @@ test_that("analytic_mst_precision preserves probability mass", {
     D = 1.7,
     theta = seq(-5,5,0.1),
     range_tcc = c(-5,5),
-    cuts = cuts,
-    cut_scale = "theta",
+    rdps = rdps,
     tol = 1e-8
   )
 
@@ -54,7 +53,7 @@ test_that("analytic_mst_precision preserves probability mass", {
 
 test_that("TD12",{
   ## TD12 two panels
-  out<-analytic_mst_precision_items(design = "1-2",assembled_panel = TD12_panel,
+  out<-analytic_mst_precision(design = "1-2",assembled_panel = TD12_panel,
                                             item_par_cols = list("3PL"=c("a","b","c"),
                                                                  "GPCM" = c("alpha","delta1","delta2","delta3"),
                                                                  "GRM" = c("alpha","beta1","beta2")),
@@ -62,8 +61,7 @@ test_that("TD12",{
                                             D = 1,
                                             theta = seq(-3,3,0.1),
                                             range_tcc = c(-5,5),
-                                            cuts = list(0),
-                                            cut_scale = "theta",
+                                            rdps = list(0),
                                             tol = 1e-4)
   ## ---- check cdist_by_mod ----
   expect_true(is.list(out$`Panel_1`$cdist_by_mod))
@@ -99,7 +97,7 @@ test_that("TD12",{
 
 test_that("TD123",{
   ## TD12 two panels
-  out<-analytic_mst_precision_items(design = "1-2-3",assembled_panel = TD123_panel,
+  out<-analytic_mst_precision(design = "1-2-3",assembled_panel = TD123_panel,
                                     item_par_cols = list("3PL"=c("a","b","c"),
                                                          "GPCM" = c("alpha","delta1","delta2","delta3"),
                                                          "GRM" = c("alpha","beta1","beta2")),
@@ -107,8 +105,7 @@ test_that("TD123",{
                                     D = 1,
                                     theta = seq(-3,3,0.1),
                                     range_tcc = c(-5,5),
-                                    cuts = list(0,c(-0.43,0.43)),
-                                    cut_scale = "theta",
+                                    rdps = list(0,c(-0.43,0.43)),
                                     tol = 1e-4)
   ## ---- check cdist_by_mod ----
   expect_true(is.list(out$`Panel_1`$cdist_by_mod))

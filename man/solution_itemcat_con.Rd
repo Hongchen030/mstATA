@@ -86,15 +86,8 @@ indexed by \eqn{i_s^{*}}. In addition, the pool contains a set of discrete
 \eqn{s = S} to allow a unified indexing scheme. Items belonging to stimulus
 \eqn{s} are indexed as \eqn{i_s = 1, 2, \ldots, I_s}.
 
-For each item \eqn{i_s},
-
-\deqn{
-  s_{i_s} =
-  \begin{cases}
-    1, & \text{if item } i_s \text{ is used in any module in any panel}, \\
-    0, & \text{otherwise}.
-  \end{cases}
-}
+For each item \eqn{i_s}, \eqn{s_{i_s} = 1} if item \eqn{i_s} is used in any module in any panel.
+\eqn{s_{i_s} = 0} otherwise.
 
 The solution-level variables track whether an item appears anywhere in the assembled
 multi-panel solution.

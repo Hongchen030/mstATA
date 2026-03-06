@@ -263,7 +263,7 @@ panel_itemreuse_con <- function(x,overlap = FALSE) {
   colnames(ConstraintMatrix)<-paste0("x[", rep(seq_len(NumModules), each = PoolSize), ",", rep(seq_len(PoolSize), NumModules), "]")
   if(length(decisionvar_name)!=num_decisions){
     ConstraintMatrix<-ConstraintMatrix[,decisionvar_name,drop=FALSE]
-    keep_rows<-which(apply(ConstraintMatrix,1,sum)>1)
+    keep_rows<-which(Matrix::rowSums(ConstraintMatrix)>1L)
     if(length(keep_rows)==0){
       stop("All constraints removed due to item-module eligibility restrictions in mst_design()")
     }

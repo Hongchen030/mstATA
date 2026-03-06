@@ -104,9 +104,19 @@ module_score_dist <- function(icc) {
       stop("Each element of `icc` must be a non-empty matrix.", call. = FALSE)
     }
 
-    score_dist <- 1
+    score_dist <- c(1)
     for (i in seq_len(nrow(icc_mat))) {
-      score_dist <- convolve_probs(score_dist, icc_mat[i, ])
+      item_probs <- icc_mat[i, ]
+      # Trim trailing zero categories
+      nonzero <- which(item_probs > tol)
+      if (length(nonzero) == 0) {
+        stop("Item has degenerate probability vector.", call. = FALSE)
+      }
+
+      max_cat <- max(nonzero)
+      item_probs <- item_probs[seq_len(max_cat)]
+
+      score_dist <- convolve_probs(score_dist, item_probs)
     }
     score_dist[score_dist<0 & abs(score_dist)<tol] <- 0
     s <- sum(score_dist)

@@ -148,8 +148,3 @@ Rudner, L. M. (2005). Expected classification accuracy.
 \emph{Practical Assessment, Research, and Evaluation}, 10(1).
 {doi:10.7275/56a5-6b14}
 }
-\seealso{
-\code{\link[=gen_weight]{gen_weight()}},
-\code{\link[=analytic_mst_precision]{analytic_mst_precision()}},
-\code{\link[=analytic_mst_precision_items]{analytic_mst_precision_items()}}
-}

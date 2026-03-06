@@ -43,7 +43,7 @@ For absolute deviation objectives, \code{"min"} is enforced automatically.}
 
 \item{goal}{Optional numeric scalar. If supplied, the objective minimizes the
 absolute deviation from the target:
-\deqn{ |a^\top x - \text{goal}| }
+\eqn{ |a^\top x - g| } where \eqn{g} is the target value.
 If \code{NULL}, a standard maximize/minimize objective is created.}
 }
 \value{
@@ -83,7 +83,7 @@ modules in a panel.
 The function supports two types of objectives:
 \itemize{
 \item \strong{Relative objective} – maximize or minimize \eqn{a^\top x}.
-\item \strong{Absolute deviation objective} – minimize \eqn{|a^\top x - \text{goal}|}.
+\item \strong{Absolute deviation objective} – minimize \eqn{|a^\top x - g|} where \eqn{g} is the target value.
 }
 }
 \details{

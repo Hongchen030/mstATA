@@ -68,7 +68,7 @@
 #'   \item \strong{Relative objective}: maximize/minimize \eqn{a^\top x}.
 #'
 #'   \item \strong{Absolute deviation objective}: minimize the deviation from
-#'         a specified target: \eqn{ |a^\top x - \text{goal}|}
+#'         a specified target: \eqn{ |a^\top x - g|} where \eqn{g} is the target value.
 #' }
 #'
 #' To combine these objectives, the function introduces an auxiliary continuous
@@ -76,7 +76,7 @@
 #'
 #' \deqn{
 #'   \min \; \sum_{k=1}^K w_k \, y_k
-#'   \quad \text{or} \quad
+#'   \quad \mathrm{or} \quad
 #'   \max \; \sum_{k=1}^K w_k \, y_k,
 #' }
 #'
@@ -191,14 +191,8 @@
 #' }
 #'
 #' where:
-#'
-#' \deqn{
-#'   \tilde{y}_k =
-#'   \begin{cases}
-#'     y_k,  & \text{if term } k \text{ is a minimization objective}, \\
-#'    -y_k,  & \text{if term } k \text{ is a maximization objective}.
-#'   \end{cases}
-#' }
+#' \eqn{\tilde{y}_k = y_k} if term k is a minimization objective.
+#' \eqn{\tilde{y}_k = -y_k} if term k is a maximization objective.
 #'
 #'
 #' @return A list of class \code{"compiled_objective"}

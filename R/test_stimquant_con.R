@@ -270,7 +270,7 @@ test_stimquant_con <- function(x,attribute,
   decisionvar_name<-x$decisionvar_name
   colnames(ConstraintMatrix)<-paste0("x[", rep(seq_len(NumModules), each = PoolSize), ",", rep(seq_len(PoolSize), NumModules), "]")
   if(length(decisionvar_name)!=num_decisions){
-    ConstraintMatrix<-ConstraintMatrix[,decisionvar_name]
+    ConstraintMatrix<-ConstraintMatrix[,decisionvar_name,drop = FALSE]
   }
 
   return(create_constraint(name = ConstraintMatrix_name,

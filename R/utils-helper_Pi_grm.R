@@ -17,6 +17,7 @@ Pi_grm<-function(theta,itempar_mat,model = c("GRM","MGRM"),D = 1){
       bj <- itempar_mat[i, 2] - itempar_mat[i, 3:ncol(itempar_mat)]
     }
     bj <- bj[!is.na(bj)]
+    bj <-sort(bj)
     K  <- length(bj)                # number of thresholds
     # cumulative probabilities
     s <- plogis(D * aj * (theta - bj))

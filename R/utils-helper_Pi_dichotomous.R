@@ -7,7 +7,7 @@ Pi_dichotomous<-function(theta,itempar_mat,D = 1){
   d <- itempar_mat[, 4]
   z <- D * a * (theta - b)
   # Stable logistic
-  L <- plogis(z)
+  L <- stats::plogis(z)
   # Guard against exact 0/1 for downstream divisions
   L <- pmin(pmax(L, 1e-10), 1-1e-10)
   Pi  <- c + (d - c) * L

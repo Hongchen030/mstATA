@@ -109,15 +109,13 @@
 #'
 #' Stage-level minimum:
 #'
-#' \deqn{
-#'   \sum_{s=1}^{S} \sum_{i_s=1}^{I_s} x_{i_s,m} \ge n_t^{\min}, \forall m \in \text{stage t}
-#' }
+#' \deqn{\sum_{s=1}^{S} \sum_{i_s=1}^{I_s} x_{i_s,m} \ge n_t^{\min}}
+#' for all modules m in stage t.
 #'
 #' Stage-level maximum:
 #'
-#' \deqn{
-#'   \sum_{s=1}^{S} \sum_{i_s=1}^{I_s} x_{i_s,m} \le n_t^{\max}, \forall m \in \text{stage t}
-#' }
+#' \deqn{\sum_{s=1}^{S} \sum_{i_s=1}^{I_s} x_{i_s,m} \le n_t^{\max}}
+#' for all modules m in stage t.
 #'
 #' Equal-length constraint for modules (m, m') in the same stage:
 #'
@@ -300,7 +298,7 @@ test_itemcount_con <- function(x,stage_length_bound=NULL) {
   colnames(ConstraintMatrix)<-paste0("x[", rep(seq_len(NumModules), each = PoolSize), ",", rep(seq_len(PoolSize), NumModules), "]")
   decisionvar_name<-x$decisionvar_name
   if(length(decisionvar_name)!=num_decisions){
-    ConstraintMatrix<-ConstraintMatrix[,decisionvar_name]
+    ConstraintMatrix<-ConstraintMatrix[,decisionvar_name,drop = FALSE]
   }
   return(create_constraint(name=ConstraintMatrix_name,
                            specification = Specification,

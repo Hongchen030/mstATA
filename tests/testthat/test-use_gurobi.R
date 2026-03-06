@@ -1,37 +1,8 @@
-test_that("use_gurobi returns NULL when gurobi is not installed", {
-
-  skip_if(
-    requireNamespace("gurobi", quietly = TRUE),
-    "gurobi is installed"
-  )
-
-  A <- Matrix::Matrix(0, nrow = 1, ncol = 1, sparse = TRUE)
-  rhs <- 0
-  sense <- "="
-  obj <- 0
-  lb <- 0
-  ub <- 1
-  vtype <- "B"
-  varname <- "x1"
-  modelsense <- "max"
-  params <- list(TimeLimit = 99999,Threads = 4,MIPFocus = 1,Heuristics = 0.2,
-                 Presolve = 2,Cuts = 2,
-                 OptimalityTol = 1e-7,FeasibilityTol = 1e-7,MIPGap = 1e-2,
-                 OutputFlag = 0, Seed = 200,InfUnbdInfo = 1,IISMethod = 1)
-  rowname <- "r1"
-
-  res <- use_gurobi(
-    A, rhs, sense, obj, lb, ub,
-    vtype, varname, modelsense,
-    params, rowname
-  )
-
-  expect_null(res)
-})
-
+if (!("gurobi" %in% rownames(utils::installed.packages()))) {
+  testthat::skip("gurobi not installed")
+}
 
 test_that("Binary knapsack solves correctly", {
-
   A <- Matrix::Matrix(c(4, 2, 1), nrow = 1,sparse = TRUE)
   rhs <- 6
   sense <- "<="

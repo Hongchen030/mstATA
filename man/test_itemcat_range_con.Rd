@@ -124,8 +124,8 @@ Interpretation:
 When only \code{target} and \code{deviation} are provided:
 
 \deqn{
-  \text{min} = \text{target} - \text{deviation}, \qquad
-  \text{max} = \text{target} + \text{deviation}.
+  min = target - deviation, \qquad
+  max = target + deviation.
 }
 }
 \section{Mathematical Formulation}{

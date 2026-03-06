@@ -17,7 +17,6 @@ Config/testthat/edition: 3
 Imports:
      stats,
      utils,
-     tidyr,
      dplyr,
      rlang,
      methods,
@@ -34,6 +33,7 @@ Suggests:
     numDeriv,
     knitr,
     rmarkdown,
+    ggformula,
     ggpubr,
     kableExtra
 VignetteBuilder: knitr

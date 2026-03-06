@@ -142,10 +142,6 @@
 #' \emph{Practical Assessment, Research, and Evaluation}, 10(1).
 #' {doi:10.7275/56a5-6b14}
 #'
-#' @seealso
-#' [gen_weight()],
-#' [analytic_mst_precision()],
-#' [analytic_mst_precision_items()]
 #'
 #' @export
 

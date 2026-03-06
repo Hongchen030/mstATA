@@ -129,15 +129,13 @@ Suppose there are \eqn{M} modules in an MST panel. Let
 
 Stage-level minimum:
 
-\deqn{
-  \sum_{s=1}^{S} \sum_{i_s=1}^{I_s} x_{i_s,m} \ge n_t^{\min}, \forall m \in \text{stage t}
-}
+\deqn{\sum_{s=1}^{S} \sum_{i_s=1}^{I_s} x_{i_s,m} \ge n_t^{\min}}
+for all modules m in stage t.
 
 Stage-level maximum:
 
-\deqn{
-  \sum_{s=1}^{S} \sum_{i_s=1}^{I_s} x_{i_s,m} \le n_t^{\max}, \forall m \in \text{stage t}
-}
+\deqn{\sum_{s=1}^{S} \sum_{i_s=1}^{I_s} x_{i_s,m} \le n_t^{\max}}
+for all modules m in stage t.
 
 Equal-length constraint for modules (m, m') in the same stage:
 

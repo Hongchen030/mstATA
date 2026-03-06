@@ -1,30 +1,53 @@
-#' @title Inverse test characteristic curve from ICCs
+#' @title Inverse test characteristic curve
 #'
 #' @description
 #'
-#' Numerically inverts a module test characteristic curve (TCC) to obtain the ability
-#' corresponding to a given observed total score.
+#' Computes the inverse Test Characteristic Curve (TCC) by mapping each
+#' possible observed total score to its corresponding estimated ability
+#' value (\eqn{\theta}). The inversion is performed numerically using a
+#' dense theta grid and root-finding.
 #'
-#' @param icc_list A named list of item category probability
-#'   matrices across a grid of ability values. Each element corresponds to
-#'   one ability level and must be named \code{"theta=<value>"}. Rows
-#'   represent items and columns represent response categories
-#'   (\code{cat0}, \code{cat1}, \dots). Can be created by \code{compute_icc()}.
+#' The function supports mixed-format tests, including dichotomous
+#' (e.g., 1PL, 2PL, 3PL, 4PL) and polytomous models
+#' (e.g., GRM, PCM, GPCM, RSM, NRM), provided the required item parameters
+#' are correctly specified in \code{item_par_cols}.
 #'
-#' @param target_score A numeric value giving the target expected total
-#'   score for which the inverse TCC is to be computed.
+#' For models with guessing (e.g., 3PL/4PL), scores below the lower
+#' asymptote are handled using linear interpolation toward the lower
+#' bound specified by \code{range_tcc}.
 #'
+#' @param items A data frame containing item metadata.
+#'   Each row represents an item. The data frame must include a column
+#'   specifying the item model (see \code{model_col}) and the parameter
+#'   columns referenced in \code{item_par_cols}.
+#' @param item_par_cols A named list defining the IRT parameter columns
+#'   required for each supported model. The list names must exactly match
+#'   the model identifiers specified in \code{items[[model_col]]}:
+#'   \code{"1PL"}, \code{"RASCH"}, \code{"2PL"}, \code{"3PL"},
+#'   \code{"4PL"}, \code{"GRM"}, \code{"MGRM"}, \code{"PCM"},
+#'   \code{"GPCM"}, \code{"RSM"}, and \code{"NRM"}.
+#'   Each list element is a character vector giving the column names
+#'   in \code{items} that contain the required item parameters for
+#'   the corresponding model.
+#' @param model_col A character string specifying the column name in
+#'   \code{items} that indicates the IRT model used for each item.
+#'   Values in this column must correspond to one of the supported
+#'   model names:
+#'   \code{"1PL"}, \code{"RASCH"}, \code{"2PL"}, \code{"3PL"},
+#'   \code{"4PL"}, \code{"GRM"}, \code{"MGRM"}, \code{"PCM"},
+#'   \code{"GPCM"}, \code{"RSM"}, or \code{"NRM"}.
+#' @param D Scaling constant used in the IRT model. Default is D=1 (for logistic metric);
+#'  D=1.702 yields approximately the normal metric.
 #' @param range_tcc A numeric vector of length two specifying the lower
-#'   and upper bounds of the ability interval used for inversion.
-#'   Defaults to \code{c(-5, 5)}.
-#'
+#'   and upper bounds of the theta search interval. The estimated theta
+#'   values are constrained within this range. Defaults to \code{c(-5, 5)}.
 #' @param tol A numeric tolerance passed to the root-finding algorithm.
 #'   Smaller values yield more precise solutions at increased
 #'   computational cost. Default is 1e-4.
 #'
 #' @section Mathematical Formulation:
 #'
-#' Consider a module consisting of \eqn{I} items. Let the score for item
+#' Consider \eqn{I} items are taken by an examinee. Let the score for item
 #' \eqn{i} be a discrete random variable \eqn{Y_i} taking values
 #' \eqn{\{0, 1, \dots, m\}}, where \eqn{m} is the maximum item score
 #' for item i. Conditional on ability \eqn{\theta}, item
@@ -60,8 +83,7 @@
 #'
 #' Because \eqn{T(\theta)} generally has no closed-form inverse, this
 #' function evaluates \eqn{T(\theta)} on a grid of ability values using
-#' ICCs and constructs a continuous approximation via linear
-#' interpolation. A root-finding algorithm is then used to solve
+#' ICCs. A root-finding algorithm is then used to solve
 #'
 #' \deqn{
 #' T(\theta) - s^\ast = 0
@@ -121,86 +143,113 @@
 #'
 #'
 #' @return
-#' A single numeric value giving the ability
-#' such that the expected module score at this ability equals the
-#' target score, up to numerical tolerance.
+#' A data frame with two columns:
+#' \describe{
+#'   \item{sum.score}{All possible observed total scores.}
+#'   \item{est.theta}{Estimated theta corresponding to each total score.}
+#' }
 #'
 #' @examples
-#' # Example with two dichotomous items and two theta values
-#' items<-data.frame(discrimination = c(1,1),difficulty = c(-1,0),model= rep("2PL",2))
+#' # Example with dichotomous items (guessing is not allowed)
+#' items<-data.frame(discrimination = c(1,1),difficulty = c(-1,0),
+#'                   model= rep("2PL",2))
+#' inv_tcc_from_icc(items = items,
+#' item_par_cols = list("2PL"=c("discrimination","difficulty")),
+#'                  model_col = "model",range_tcc = c(-5,5))
 #'
-#' icc_list<-compute_icc(items = items,
-#'                       item_par_cols = list("2PL"=c("discrimination","difficulty")),
-#'                       theta = seq(-5,5,0.1),model_col = "model")
-#'
-#' inv_tcc_from_icc(icc_list, target_score = 1)
-#'
-#' # Example with two dichotomous items, (guessing is allowed)
+#' # Example with dichotomous items, (guessing is allowed)
 #' items<-data.frame(discrimination = c(1,1),difficulty = c(-1,0),guessing = c(0.2, 0.2),
 #'                   model= rep("3PL",2))
-#' icc_list<-compute_icc(items = items,
-#'                       item_par_cols = list("3PL"=c("discrimination","difficulty","guessing")),
-#'                       theta = seq(-5,5,0.1),
-#'                       model_col = "model")
-#' inv_tcc_from_icc(icc_list, target_score = 0)
+#' inv_tcc_from_icc(items = items,
+#'  item_par_cols = list("3PL"=c("discrimination","difficulty","guessing")),
+#'                  model_col = "model", range_tcc = c(-5,5))
+#'
+#' # Example with polytomous items
+#' items <- data.frame(alphaj = c(1.169,1.052,0.828,0.892,0.965),
+#'                     betaj1 = c(-0.006,-2.405,-0.799,-1.148,-0.299),
+#'                     betaj2 = c(0.487,1.125,0.764,-0.289,1.512),
+#'                     model = rep("GRM",5))
+#' inv_tcc_from_icc(items = items,
+#' item_par_cols = list("GRM"=c("alphaj","betaj1","betaj2")),
+#'                  model_col = "model", range_tcc = c(-5,5))
 #'
 #' @export
 
-inv_tcc_from_icc <- function(icc_list, target_score,
+inv_tcc_from_icc <- function(items, item_par_cols, model_col, D = 1,
                              range_tcc = c(-5, 5),
                              tol = 1e-4) {
-  if (!is.list(icc_list) || length(icc_list) == 0) {
-    stop("`icc_list` must be a non-empty list.", call. = FALSE)
-  }
-  if (!is.numeric(target_score) || length(target_score) != 1L || is.na(target_score)) {
-    stop("`target_score` must be a single non-missing numeric value.",
+  names(item_par_cols)<-toupper(names(item_par_cols))
+  if (!is.numeric(range_tcc) || length(range_tcc) != 2L || anyNA(range_tcc) ||
+      range_tcc[1] >= range_tcc[2]) {
+    stop("`range_tcc` must be a numeric length-2 vector with range_tcc[1] < range_tcc[2].",
          call. = FALSE)
   }
+  if (!is.numeric(tol) || length(tol) != 1L || is.na(tol) || tol <= 0) {
+    stop("`tol` must be a single positive numeric value.", call. = FALSE)
+  }
+  theta_grid<-seq(-7,7,0.005)
+  icc_list<-compute_icc(items = items,item_par_cols = item_par_cols,
+                        theta = theta_grid,model_col = model_col,
+                        D = D)
+  icc_example <- icc_list[[1]]
+  max_score_vec <- apply(icc_example, 1, function(p) {
+    nz <- which(p != 0)
+    if (length(nz) == 0L) return(0L)
+    max(nz) - 1L
+  })
+  max_score <- sum(max_score_vec)
+  obs_score<- 0:max_score
 
-  ## ---- extract theta values from names like 'theta=0.5' ----
-  nm <- names(icc_list)
-  if (is.null(nm)) {
-    stop("`icc_list` must be a named list with names like 'theta=<value>'.",
-         call. = FALSE)
-  }
-  theta_vals <- suppressWarnings(
-    as.numeric(sub("^theta=", "", nm))
+  score_vec <- 0:(ncol(icc_example) - 1)
+  tcc <- numeric(length(theta_grid))
+  tcc <- vapply(icc_list,
+    function(mat) sum(mat %*% score_vec),
+    numeric(1)
   )
-  if (anyNA(theta_vals)) {
-    stop("All names of `icc_list` must be of the form 'theta=<numeric>'.",
-         call. = FALSE)
+  # enforce weak monotonicity
+  tcc <- cummax(tcc)
+  # ---------- Fast bracket detection ----------
+  theta_est <- numeric(length(obs_score))
+  below_lower<-obs_score[obs_score<=min(tcc)]
+  above_upper<-obs_score[obs_score>=max(tcc)]
+  theta_est[above_upper+1] <- range_tcc[2]
+  theta_est[below_lower+1]<-range_tcc[1]
+  models <- toupper(items[[model_col]])
+  ## compute the sum of guessing if guessing parameters exist
+  if (all(models %in% c("3PL","4PL"))) {
+    g_sum <- 0
+    if ("3PL" %in% names(item_par_cols)) {
+      idx <- items[[model_col]] == "3PL"
+      g_sum <- g_sum + sum(items[idx, item_par_cols[["3PL"]][3]], na.rm = TRUE)
+    }
+    if ("4PL" %in% names(item_par_cols)) {
+      idx <- items[[model_col]] == "4PL"
+      g_sum <- g_sum + sum(items[idx, item_par_cols[["4PL"]][3]], na.rm = TRUE)
+    }
+    # minimum NC score greater than the sum of guessing
+    X <- ceiling(g_sum)
+    idx_X <- findInterval(X, tcc, rightmost.closed = TRUE)
+    if (idx_X == 0) {
+      theta_X <- range_tcc[1]
+    } else if (idx_X >= length(theta_grid)) {
+      theta_X <- range_tcc[2]
+    } else {
+      theta_X <- .invert_tcc_score(score = X,theta_grid = theta_grid,tcc = tcc, idx = idx_X,tol = tol)
+    }
+    below_guessing<-obs_score[obs_score<X]
+    theta_min<-range_tcc[1]
+    for(s in below_guessing){
+      theta_est[s+1]<-theta_min + ( s/ X) * (theta_X - theta_min)
+    }
+    interior<-setdiff(obs_score,c(below_guessing,above_upper))
+  }else{
+    interior<-setdiff(obs_score,c(below_lower,above_upper))
   }
-  exp_scores <- vapply(icc_list, expected_score, numeric(1))
-  ## sort
-  ord <- order(theta_vals)
-  theta_vals <- theta_vals[ord]
-  exp_scores <- exp_scores[ord]
-  ## TCC bounds
-  tcc_min<-min(exp_scores)
-  tcc_max<-max(exp_scores)
-  ## weak monotonicity check
-  if (any(diff(exp_scores) < -1e-6)) {
-    warning("Expected score is not monotone in theta; inversion may be unstable.")
-  }
-  theta_min<-range_tcc[1]
-  G<-min(exp_scores)
-  X<-ceiling(G)
-  fX<-stats::approxfun(theta_vals,exp_scores-X,rule = 1)
-  theta_X<-stats::uniroot(fX,interval = range(theta_vals),
-                          tol = tol,maxiter = 500)$root
 
-  ## non-invertible scores (3PL)
-  if(target_score<tcc_min){
-    ## linear interpolation below guessinh
-    return(theta_min+(target_score/X)*(theta_X-theta_min))
-  }
+  theta_est[interior+1]<-.invert_tcc_scores(scores=interior,theta_grid=theta_grid,tcc=tcc,tol=tol,range_tcc=range_tcc)
+  theta_est <- pmax(range_tcc[1],
+                    pmin(range_tcc[2], theta_est))
 
-  if(target_score>=tcc_max){
-    return(range_tcc[2])
-  }
-
-  f <- stats::approxfun(theta_vals, exp_scores - target_score,
-                        rule = 1)
-  stats::uniroot(f, interval = range(theta_vals),
-                 tol = tol,maxiter = 500)$root
+  return(data.frame(sum.score = obs_score,est.theta = theta_est,row.names = NULL))
 }
+

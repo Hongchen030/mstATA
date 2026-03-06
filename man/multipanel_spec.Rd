@@ -130,7 +130,7 @@ Item-specific reuse limits may be supplied through:
 }
 
 The total number of constraints generated is always
-\eqn{2 \times \text{PoolSize}}, corresponding to one minimum and one maximum
+\eqn{2 \times P} where \eqn{P} is the pool size, corresponding to one minimum and one maximum
 constraint per item.
 }
 \seealso{

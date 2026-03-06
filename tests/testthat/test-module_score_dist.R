@@ -104,7 +104,7 @@ test_that("module_score_dist supports mixed dichotomous and polytomous items", {
   expect_equal(colnames(out), "theta=0")
 
   ## max score = 1 + 3 = 4
-  expect_equal(rownames(out), as.character(0:4))
+  expect_equal(rownames(out), as.character(0:3))
   expect_equal(sum(out), 1, tolerance = 1e-10)
 })
 

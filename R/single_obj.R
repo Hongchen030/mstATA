@@ -5,7 +5,7 @@
 #' assembly. The optimization is to maximize or minimize a single linear score.
 #'
 #' \deqn{
-#'   \max \; y \quad \text{or} \quad \min \; y,
+#'   \max \; y \quad \mathrm{or} \quad \min \; y,
 #' }
 #'
 #' where \eqn{y = a^\top x} is the linear objective term created by
@@ -50,7 +50,7 @@
 #'   \item \strong{Relative objective}: maximize/minimize \eqn{a^\top x}.
 #'
 #'   \item \strong{Absolute deviation objective}: minimize the deviation from
-#'         a specified target: \eqn{ |a^\top x - \text{goal}|}
+#'         a specified target: \eqn{ |a^\top x - g|}, where \eqn{g} is the target value.
 #' }
 #'
 #' Examples include:

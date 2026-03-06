@@ -57,7 +57,8 @@
 #'
 #' @export
 
-plot_panel_tif <- function(assembled_panel,item_par_cols,model_col,D = 1,theta = seq(-5,5,0.1),
+plot_panel_tif <- function(assembled_panel,item_par_cols,model_col,D = 1,
+                           theta = seq(-5,5,0.1),
                            unit = "module",
                            mode = "within_panel",
                            legend = TRUE) {

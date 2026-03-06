@@ -84,15 +84,31 @@ report_test_tcc<-function(assembled_panel,theta,
 
     icc_list<-compute_icc(dat,item_par_cols,theta,model_col = model_col,nrCat_col = NULL,
                           D = D)
-    cat_names <- colnames(icc_list[[1]])
+    compute_tcc_subset <- function(idx) {
+      tcc<-numeric(length(theta))
+      icc_example <- icc_list[[1]][idx, , drop = FALSE]
 
-    ## ---- helper to aggregate probabilities ----
-    aggregate_prob <- function(idx) {
-      do.call(
-        rbind,
-        lapply(seq_along(theta), function(t) {
-          colMeans(icc_list[[t]][idx, , drop = FALSE])
-        })
+      max_score_vec <- apply(icc_example, 1, function(item_probs) {
+        nonzero <- which(item_probs > 1e-10)
+        if (length(nonzero) == 0) return(0)
+        max(nonzero) - 1
+      })
+      max_score <- sum(max_score_vec)
+
+      # ---- Compute TCC ----
+      for (t in seq_along(theta)) {
+
+        icc_mat <- icc_list[[t]][idx, , drop = FALSE]
+
+        score_vec <- 0:(ncol(icc_mat) - 1)
+
+        tcc[t] <- sum(icc_mat %*% score_vec)
+      }
+
+      list(
+        TCC = tcc,
+        max_score = max_score,
+        TCC_norm = tcc / max_score
       )
     }
 
@@ -100,14 +116,15 @@ report_test_tcc<-function(assembled_panel,theta,
 
       res <- lapply(which_module, function(m) {
         idx <- dat$module_id == m
-        prob_mat <- aggregate_prob(idx)
-        colnames(prob_mat) <- cat_names
+        tcc_list <- compute_tcc_subset(idx)
 
         data.frame(
           panel_id  = panel_name,
           module_id = m,
           theta     = theta,
-          prob_mat,
+          TCC = tcc_list[["TCC"]],
+          max_score = tcc_list[["max_score"]],
+          TCC_norm = tcc_list[["TCC_norm"]],
           row.names = NULL
         )
       })
@@ -116,14 +133,15 @@ report_test_tcc<-function(assembled_panel,theta,
 
       res <- lapply(which_pathway, function(p) {
         idx <- dat$pathway_id == p
-        prob_mat <- aggregate_prob(idx)
-        colnames(prob_mat) <- cat_names
+        tcc_list <- compute_tcc_subset(idx)
 
         data.frame(
           panel_id   = panel_name,
           pathway_id = p,
           theta      = theta,
-          prob_mat,
+          TCC = tcc_list[["TCC"]],
+          max_score = tcc_list[["max_score"]],
+          TCC_norm = tcc_list[["TCC_norm"]],
           row.names = NULL
         )
       })

@@ -126,29 +126,23 @@
 #'
 #' In specified module m: for all \eqn{i_s} specified in \code{item_ids}
 #'
-#' \deqn{
-#'   x_{i_s, m} = 1 \quad (\text{selected}), \qquad
-#'   x_{i_s, m} = 0 \quad (\text{not selected}), \qquad
-#' }
+#' \eqn{x_{i_s,m} = 1} if item \eqn{i_s} must be selected in module m.
+#' \eqn{x_{i_s,m} = 0} if item \eqn{i_s} must not be selected in module m.
+#'
 #'
 #' **2. Pathway-level item selection/not selection**
 #'
 #' In specified pathway r:  for all \eqn{i_s} specified in \code{item_ids}
 #'
-#' \deqn{
-#'   \sum_{m \in r} x_{i_s, m} = 1 \quad (\text{selected}), \qquad
-#'   \sum_{m \in r} x_{i_s, m} = 0 \quad (\text{not selected}), \qquad
-#' }
-#'
+#' \eqn{\sum_{m \in r} x_{i_s,m} = 1} if item \eqn{i_s} must be selected in pathway r.
+#' \eqn{\sum_{m \in r} x_{i_s,m} = 0} if item \eqn{i_s} must not be selected in pathway r.
 #'
 #' **3. Panel-level item selection/not selection**
 #'
 #' In a panel: for all \eqn{i_s} specified in \code{item_ids}
 #'
-#' \deqn{
-#'   \sum_{m} x_{i_s, m} = 1 \quad (\text{selected}), \qquad,
-#'   \sum_{m} x_{i_s, m} = 0 \quad (\text{not selected}), \qquad
-#' }
+#' \eqn{\sum_{m} x_{i_s,m} = 1} if item \eqn{i_s} must be selected in a panel.
+#' \eqn{\sum_{m} x_{i_s,m} = 0} if item \eqn{i_s} must not be selected in a panel.
 #'
 #' Here:
 #' \itemize{
@@ -310,7 +304,7 @@ itemcat_con <- function(x, item_ids, select = TRUE,
   colnames(ConstraintMatrix)<-paste0("x[", rep(seq_len(NumModules), each = PoolSize), ",", rep(seq_len(PoolSize), NumModules), "]")
   if(length(decisionvar_name)!=num_decisions){
     ConstraintMatrix<-ConstraintMatrix[,decisionvar_name,drop = FALSE]
-    keep_rows<-which(apply(ConstraintMatrix,1,sum)!=0)
+    keep_rows<-which(Matrix::rowSums(ConstraintMatrix)!=0)
     if (length(keep_rows) == 0) {
       stop("All constraints removed due to item-module eligibility restrictions in mst_design().")
     }

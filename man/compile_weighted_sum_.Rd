@@ -87,7 +87,7 @@ The weighted-sum objective optimizes:
 
 \deqn{
   \min \; \sum_{k=1}^K w_k \, y_k
-  \quad \text{or} \quad
+  \quad \mathrm{or} \quad
   \max \; \sum_{k=1}^K w_k \, y_k,
 }
 

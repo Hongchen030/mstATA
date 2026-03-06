@@ -144,12 +144,12 @@ slack penalties:
 
 \deqn{
 \min \; f(x)
-+ \sum_{b \in \mathcal{B}_{\text{cat}}} \lambda_{\text{cat}}\, s_b
-+ \sum_{b \in \mathcal{B}_{\text{quant}}} \lambda_{\text{quant}}\, s_b,
++ \sum_{b \in \mathcal{B}_{\text{cat}}} \lambda_{\mathrm{cat}}\, s_b
++ \sum_{b \in \mathcal{B}_{\text{quant}}} \lambda_{\mathrm{quant}}\, s_b,
 }
 
 where \eqn{f(x)} denotes the original objective function, and
-\eqn{\lambda_{\text{cat}} > \lambda_{\text{quant}} > 0} are user-specified
+\eqn{\lambda_{\mathrm{cat}} > \lambda_{\mathrm{quant}} > 0} are user-specified
 penalty coefficients.
 
 If the original problem is a maximization problem, the equivalent formulation
@@ -157,8 +157,8 @@ is obtained by subtracting the slack penalties from the objective:
 
 \deqn{
 \max \; f(x)
-- \sum_{b \in \mathcal{B}_{\text{cat}}} \lambda_{\text{cat}}\, s_b
-- \sum_{b \in \mathcal{B}_{\text{quant}}} \lambda_{\text{quant}}\, s_b.
+- \sum_{b \in \mathcal{B}_{\text{cat}}} \lambda_{\mathrm{cat}}\, s_b
+- \sum_{b \in \mathcal{B}_{\text{quant}}} \lambda_{\mathrm{quant}}\, s_b.
 }
 
 The resulting solution represents a best-compromise feasible design that

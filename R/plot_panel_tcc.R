@@ -68,7 +68,8 @@
 #'
 #' @export
 
-plot_panel_tcc <- function(assembled_panel,item_par_cols,model_col,D = 1,theta = seq(-5,5,0.1),
+plot_panel_tcc <- function(assembled_panel,item_par_cols,model_col,D = 1,
+                           theta = seq(-5,5,0.1),
                            unit = "module",
                            mode = "within_panel",
                            legend = TRUE) {
@@ -93,23 +94,7 @@ plot_panel_tcc <- function(assembled_panel,item_par_cols,model_col,D = 1,theta =
                            which_module = which_module,which_pathway = which_pathway)
   ## ---- collect into tidy data ----
   unit_id <- paste0(unit, "_id")
-  ## ---- category columns ----
-  required_cols <- c("panel_id", unit_id, "theta")
-  cat_cols <- setdiff(names(plot_df), required_cols)
-  n_cat <- length(cat_cols)
-  if (n_cat == 2) {
-    cat_cols <- "cat1"
-    dichotomous <- TRUE
-  } else {
-    dichotomous <- FALSE
-  }
-
-
   n_panel<-length(unique(plot_df$panel_id))
-
-  plot_long <- tidyr::pivot_longer(plot_df,
-                                   cols = dplyr::all_of(cat_cols),
-                                   names_to = "category",values_to = "probability")
 
   ## ---- aesthetics ----
   if (n_panel == 1) {
@@ -122,32 +107,29 @@ plot_panel_tcc <- function(assembled_panel,item_par_cols,model_col,D = 1,theta =
     color_var <- "panel_id"
     facet_var <- unit_id
   }
-  if (!is.factor(plot_long[[unit_id]])) {
-    plot_long[[unit_id]] <- factor(plot_long[[unit_id]])
-  }
+
+  plot_df[[unit_id]]<-factor(plot_df[[unit_id]])
+
   ## ---- plot ----
   p <- ggplot2::ggplot(
-    plot_long,
+    plot_df,
     ggplot2::aes(
       x = .data[["theta"]],
-      y = .data[["probability"]],
+      y = .data[["TCC_norm"]],
       color = .data[[color_var]]
     )
-  )
-
-  if (!dichotomous) {
-    p <- p + ggplot2::aes(linetype = .data[["category"]])
-  }
-
-  p<-p+ggplot2::geom_line(linewidth = 1) +
+  )+ggplot2::geom_line(linewidth = 1) +
     ggplot2::scale_x_continuous(
       breaks = pretty(range(theta), n = 11)) +
+    ggplot2::scale_y_continuous(
+      breaks = c(0, 0.25, 0.5, 0.75, 1),
+      limits = c(0, 1),
+      expand = c(0, 0)
+    )+
     ggplot2::labs(
       x = expression(theta),
-      y = if (dichotomous) "P(X = 1)" else "Category Probability",
-      color = if (color_var == "panel_id") "Panel" else unit,
-      linetype = if (dichotomous) NULL else "category"
-    ) +
+      y = "Expected Proportion Score",
+      color = if (color_var == "panel_id") "Panel" else unit) +
     ggplot2::theme_bw() +
     ggplot2::theme(
       strip.background = ggplot2::element_rect(fill = "grey85",color = NA),

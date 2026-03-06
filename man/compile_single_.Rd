@@ -48,7 +48,7 @@ In the single-objective case, the optimization reduces to maximizing or
 minimizing a single linear score:
 
 \deqn{
-  \max \; y \quad \text{or} \quad \min \; y,
+  \max \; y \quad \mathrm{or} \quad \min \; y,
 }
 
 where \eqn{y = a^\top x} is the linear objective term created by

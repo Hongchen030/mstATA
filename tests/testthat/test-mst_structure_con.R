@@ -25,13 +25,9 @@ test_that("mst_structure_con combines item count and routing constraints", {
 })
 
 test_that("mst_structure_con works with item count constraints only", {
-
   design <- mst_design(itempool = test_itempool,
                        design = "1-3-3",
-                       module_length = c(4,2,2,2,2,2,2),
-                       pivot_stim_map = pivot_stim_map,
-                       enemyitem_set = enemyitem_set,
-                       enemystim_set = enemystim_set)
+                       module_length = c(4,2,2,2,2,2,2))
 
   con <- mst_structure_con(
     x = design,
@@ -41,8 +37,6 @@ test_that("mst_structure_con works with item count constraints only", {
   expect_s3_class(con, "mstATA_constraint")
   expect_equal(nrow(con$A_binary),7)
 })
-
-
 
 test_that("mst_structure_con propagates errors from test_rdp_con", {
 

@@ -68,11 +68,7 @@ use_highs<-function(A,rhs, sense, obj,lb, ub,
     status<-"UNBOUNDED"
   }else if (status == "Time limit reached"){
     status<-"TIME_LIMIT"
-    if (has_solution) {
-      message("HiGHS reached time limit; returning best feasible solution.")
-    } else {
-      message("HiGHS reached time limit with no feasible solution.")
-    }
+    message("HiGHS reached time limit.")
   } else if (status == "Feasible") {
     message("HiGHS found a feasible solution.")
     status <- "FEASIBLE"
@@ -82,7 +78,7 @@ use_highs<-function(A,rhs, sense, obj,lb, ub,
   }
 
 
-  if(has_solution && status %in% c("OPTIMAL", "FEASIBLE", "TIME_LIMIT")){
+  if(has_solution && status %in% c("OPTIMAL", "FEASIBLE")){
     best_solution <- result[["primal_solution"]]
     objval<-result[["objective_value"]]
     idx <- hard_term_index(varname)
