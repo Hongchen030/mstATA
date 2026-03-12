@@ -1,0 +1,17 @@
+Package: mstATA
+Title: Automated Test Assembly for Multistage Tests Using Mixed-Integer Linear Programming
+Version: 0.1.0
+Authors@R: person("Hong","Chen", email="hongchen030@gmail.com", role = c("aut", "cre"))
+Description: Provides a suite of mixed-integer linear programming (MILP) model builders and solvers—including Gurobi, HiGHS, Symphony, GLPK, and lpsolve—for automated test assembly (ATA) in multistage testing. Offers filtering of decision variables through item–module eligibility and the application of explicit bounds to simplify the MILP model and accelerate the optimization process. Supports bottom up, top down, and hybrid assembly strategies; enemy-item and enemy-stimulus exclusions; stimulus all in/all out or partial selection; anchor item/stimulus specification; and item exposure control. Accommodates both single-objective and multi-objective optimization (weighted-sum, maximin, capped-maximin, minimax, and goal programming). Enables simultaneous assembly of multiple panels with item and stimulus content balancing and exposure control. Provides analytical evaluation of assembled MST performance within seconds. Includes tools for diagnosing infeasible optimization models by systematically identifying sources of infeasibility and reformulating models with slack variables to restore feasibility. 
+License: MIT + file LICENSE
+Encoding: UTF-8
+Roxygen: list(markdown = TRUE)
+RoxygenNote: 7.3.3
+Depends: R (>= 4.0)
+LazyData: true
+Config/testthat/edition: 3
+Imports:stats, utils, dplyr, rlang, methods, Matrix, ggplot2
+Suggests: testthat (>= 3.0.0),knitr,rmarkdown, kableExtra,highs,lpSolveAPI,Rglpk,Rsymphony,irtQ,mstR,numDeriv,ggformula,ggpubr
+VignetteBuilder: knitr
+URL: https://github.com/Hongchen030/mstATA
+BugReports: https://github.com/Hongchen030/mstATA/issues 

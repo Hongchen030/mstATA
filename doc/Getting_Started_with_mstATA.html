@@ -1,0 +1,674 @@
+<!DOCTYPE html>
+
+<html>
+
+<head>
+
+<meta charset="utf-8" />
+<meta name="generator" content="pandoc" />
+<meta http-equiv="X-UA-Compatible" content="IE=EDGE" />
+
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+
+<meta name="author" content="Hong" />
+
+<meta name="date" content="2026-03-11" />
+
+<title>Getting Started with mstATA: A Complete Workflow</title>
+
+<script>// Pandoc 2.9 adds attributes on both header and div. We remove the former (to
+// be compatible with the behavior of Pandoc < 2.8).
+document.addEventListener('DOMContentLoaded', function(e) {
+  var hs = document.querySelectorAll("div.section[class*='level'] > :first-child");
+  var i, h, a;
+  for (i = 0; i < hs.length; i++) {
+    h = hs[i];
+    if (!/^h[1-6]$/i.test(h.tagName)) continue;  // it should be a header h1-h6
+    a = h.attributes;
+    while (a.length > 0) h.removeAttribute(a[0].name);
+  }
+});
+</script>
+
+<style type="text/css">
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+span.underline{text-decoration: underline;}
+div.column{display: inline-block; vertical-align: top; width: 50%;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+</style>
+
+
+
+
+
+
+
+<style type="text/css">body {
+background-color: #fff;
+margin: 1em auto;
+max-width: 700px;
+overflow: visible;
+padding-left: 2em;
+padding-right: 2em;
+font-family: "Open Sans", "Helvetica Neue", Helvetica, Arial, sans-serif;
+font-size: 14px;
+line-height: 1.35;
+}
+#TOC {
+clear: both;
+margin: 0 0 10px 10px;
+padding: 4px;
+width: 400px;
+border: 1px solid #CCCCCC;
+border-radius: 5px;
+background-color: #f6f6f6;
+font-size: 13px;
+line-height: 1.3;
+}
+#TOC .toctitle {
+font-weight: bold;
+font-size: 15px;
+margin-left: 5px;
+}
+#TOC ul {
+padding-left: 40px;
+margin-left: -1.5em;
+margin-top: 5px;
+margin-bottom: 5px;
+}
+#TOC ul ul {
+margin-left: -2em;
+}
+#TOC li {
+line-height: 16px;
+}
+table {
+margin: 1em auto;
+border-width: 1px;
+border-color: #DDDDDD;
+border-style: outset;
+border-collapse: collapse;
+}
+table th {
+border-width: 2px;
+padding: 5px;
+border-style: inset;
+}
+table td {
+border-width: 1px;
+border-style: inset;
+line-height: 18px;
+padding: 5px 5px;
+}
+table, table th, table td {
+border-left-style: none;
+border-right-style: none;
+}
+table thead, table tr.even {
+background-color: #f7f7f7;
+}
+p {
+margin: 0.5em 0;
+}
+blockquote {
+background-color: #f6f6f6;
+padding: 0.25em 0.75em;
+}
+hr {
+border-style: solid;
+border: none;
+border-top: 1px solid #777;
+margin: 28px 0;
+}
+dl {
+margin-left: 0;
+}
+dl dd {
+margin-bottom: 13px;
+margin-left: 13px;
+}
+dl dt {
+font-weight: bold;
+}
+ul {
+margin-top: 0;
+}
+ul li {
+list-style: circle outside;
+}
+ul ul {
+margin-bottom: 0;
+}
+pre, code {
+background-color: #f7f7f7;
+border-radius: 3px;
+color: #333;
+white-space: pre-wrap; 
+}
+pre {
+border-radius: 3px;
+margin: 5px 0px 10px 0px;
+padding: 10px;
+}
+pre:not([class]) {
+background-color: #f7f7f7;
+}
+code {
+font-family: Consolas, Monaco, 'Courier New', monospace;
+font-size: 85%;
+}
+p > code, li > code {
+padding: 2px 0px;
+}
+div.figure {
+text-align: center;
+}
+img {
+background-color: #FFFFFF;
+padding: 2px;
+border: 1px solid #DDDDDD;
+border-radius: 3px;
+border: 1px solid #CCCCCC;
+margin: 0 5px;
+}
+h1 {
+margin-top: 0;
+font-size: 35px;
+line-height: 40px;
+}
+h2 {
+border-bottom: 4px solid #f7f7f7;
+padding-top: 10px;
+padding-bottom: 2px;
+font-size: 145%;
+}
+h3 {
+border-bottom: 2px solid #f7f7f7;
+padding-top: 10px;
+font-size: 120%;
+}
+h4 {
+border-bottom: 1px solid #f7f7f7;
+margin-left: 8px;
+font-size: 105%;
+}
+h5, h6 {
+border-bottom: 1px solid #ccc;
+font-size: 105%;
+}
+a {
+color: #0033dd;
+text-decoration: none;
+}
+a:hover {
+color: #6666ff; }
+a:visited {
+color: #800080; }
+a:visited:hover {
+color: #BB00BB; }
+a[href^="http:"] {
+text-decoration: underline; }
+a[href^="https:"] {
+text-decoration: underline; }
+
+code > span.kw { color: #555; font-weight: bold; } 
+code > span.dt { color: #902000; } 
+code > span.dv { color: #40a070; } 
+code > span.bn { color: #d14; } 
+code > span.fl { color: #d14; } 
+code > span.ch { color: #d14; } 
+code > span.st { color: #d14; } 
+code > span.co { color: #888888; font-style: italic; } 
+code > span.ot { color: #007020; } 
+code > span.al { color: #ff0000; font-weight: bold; } 
+code > span.fu { color: #900; font-weight: bold; } 
+code > span.er { color: #a61717; background-color: #e3d2d2; } 
+</style>
+
+
+
+
+</head>
+
+<body>
+
+
+
+
+<h1 class="title toc-ignore">Getting Started with mstATA: A Complete
+Workflow</h1>
+<h4 class="author">Hong</h4>
+<h4 class="date">2026-03-11</h4>
+
+
+<div id="TOC">
+<ul>
+<li><a href="#introduction" id="toc-introduction">Introduction</a></li>
+<li><a href="#workflow-overview" id="toc-workflow-overview">Workflow
+Overview</a>
+<ul>
+<li><a href="#step-1-prepare-the-item-pool" id="toc-step-1-prepare-the-item-pool">Step 1: Prepare the Item
+Pool</a></li>
+<li><a href="#step-2-specify-the-mst-structure" id="toc-step-2-specify-the-mst-structure">Step 2: Specify the MST
+Structure</a></li>
+<li><a href="#step-3-identify-hierarchical-requirements" id="toc-step-3-identify-hierarchical-requirements">Step 3: Identify
+Hierarchical Requirements</a></li>
+<li><a href="#step-4-translate-specifications-into-an-optimization-model" id="toc-step-4-translate-specifications-into-an-optimization-model">Step
+4: Translate specifications into an optimization model</a></li>
+<li><a href="#step-5-execute-assembly-via-a-solver" id="toc-step-5-execute-assembly-via-a-solver">Step 5: Execute Assembly
+via a Solver</a></li>
+<li><a href="#step-6-diagnosing-infeasibility" id="toc-step-6-diagnosing-infeasibility">Step 6: Diagnosing
+Infeasibility</a></li>
+<li><a href="#step-7-evaluate-assembled-panels" id="toc-step-7-evaluate-assembled-panels">Step 7: Evaluate assembled
+panels</a></li>
+</ul></li>
+<li><a href="#summary" id="toc-summary">Summary</a></li>
+</ul>
+</div>
+
+<div id="introduction" class="section level2">
+<h2>Introduction</h2>
+<p>The <code>mstATA</code> package provides a comprehensive framework
+for automatic multistage test (MST) assembly using mixed-integer linear
+programming (MILP).</p>
+<p>Specifically, <code>mstATA</code> supports</p>
+<ul>
+<li><p>flexible specification of constraints across multiple
+hierarchical levels, including module-, pathway-, panel-, and
+solution-level;</p></li>
+<li><p>partial selection of items associated with the same stimulus,
+allowing item-stimulus dependencies to be modeled without forcing
+all-in/all-out inclusion;</p></li>
+<li><p>flexible formulation of single or multiple objectives, including
+absolute and relative objectives;</p></li>
+<li><p>simultaneous assembly of multiple parallel MST panels with global
+control over exposure and content balancing;</p></li>
+<li><p>diagnostic feedback and reformulation tools for situations in
+which the optimization problem becomes infeasible or reaches time
+limit.</p></li>
+</ul>
+<p>In addition to MST panel assembly, <code>mstATA</code> incorporates
+analytic methods for evaluating MST performance, such as measurement
+precision and classification accuracy. Collectively, these capabilities
+allow <code>mstATA</code> to unify a broad class of MST assembly and
+evaluation problems within a single modeling framework.</p>
+</div>
+<div id="workflow-overview" class="section level2">
+<h2>Workflow Overview</h2>
+<table>
+<colgroup>
+<col width="38%" />
+<col width="61%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th align="left">Step</th>
+<th align="left">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td align="left">Prepare item pool</td>
+<td align="left">Check attributes in the item pool.</td>
+</tr>
+<tr class="even">
+<td align="left">Specify MST structure</td>
+<td align="left">Create mstATA_design object.</td>
+</tr>
+<tr class="odd">
+<td align="left">Identify hierarchical requirements</td>
+<td align="left">Understand test specifications.</td>
+</tr>
+<tr class="even">
+<td align="left">Translate specifications to linear model</td>
+<td align="left">Create mstATA_constraint and mstATA_objective
+objects.</td>
+</tr>
+<tr class="odd">
+<td align="left">Execute assembly via solver</td>
+<td align="left">Create mstATA_model and mstATA_panel objects.</td>
+</tr>
+<tr class="even">
+<td align="left">Diagnose infeasible models</td>
+<td align="left">Check the feasibility of individual and combined
+specifications.</td>
+</tr>
+<tr class="odd">
+<td align="left">Evaluate assembled panels</td>
+<td align="left">Produce tables, plots, and analytical results.</td>
+</tr>
+</tbody>
+</table>
+<div id="step-1-prepare-the-item-pool" class="section level3">
+<h3>Step 1: Prepare the Item Pool</h3>
+<p>Before assembly, the item pool must contain all required attributes
+(categorical, quantitative, logical) at item-, stimulus-, itemset-
+levels.</p>
+<div id="irt-computation" class="section level4">
+<h4>IRT Computation</h4>
+<ul>
+<li><code>compute_icc()</code>: item category probabilities</li>
+<li><code>compute_iif()</code> : item information function</li>
+<li><code>Pi_internal()</code>: helper function for
+<code>compute_icc()</code> and <code>compute_iif()</code></li>
+<li><code>plot_tif()</code>: item pool information preview</li>
+</ul>
+</div>
+<div id="attribute-check" class="section level4">
+<h4>Attribute Check</h4>
+<ul>
+<li><code>get_attribute_val()</code>: extract categorical/quantitative
+attribute values</li>
+<li><code>create_enemy_sets()</code>: create enemy item sets/enemy
+stimulus sets</li>
+<li><code>concat_enemy_sets()</code>: combine enemy item sets/enemy
+stimulus sets from different sources (e.g., similarity, cluing, or other
+test security concern)</li>
+<li><code>create_pivot_stimulus_map()</code>: create item-stimulus
+mapping</li>
+</ul>
+</div>
+</div>
+<div id="step-2-specify-the-mst-structure" class="section level3">
+<h3>Step 2: Specify the MST Structure</h3>
+<p>An MST design is defined using <code>mst_design()</code>. The
+<code>mstATA_design</code> object defines:</p>
+<ul>
+<li>MST design: number of stages, number of modules per stage<br />
+</li>
+<li>Module/pathway lengths<br />
+</li>
+<li>Routing structure: excluded pathways, routing decision points<br />
+</li>
+<li>Decision variables for item-module selection in a panel</li>
+</ul>
+<p>This step creates <code>mstATA_design</code> object, which is the
+required input for the subsequent process.</p>
+</div>
+<div id="step-3-identify-hierarchical-requirements" class="section level3">
+<h3>Step 3: Identify Hierarchical Requirements</h3>
+<p>In addition to the type of specification—<strong>categorical,
+quantitative, or logical</strong>—each specification has two distinct
+dimensions: a <strong>defined level</strong>, which indicates the unit
+to which the requirement conceptually applies (item, stimulus, item set,
+module, pathway, panel, or solution), and an <strong>enforced
+level</strong>, which specifies the scope over which the requirement is
+operationally imposed (module, pathway, panel, or solution).</p>
+<p>For requirements defined at the item, stimulus, or item-set levels,
+the enforcement level must be specified at a higher aggregation level
+(module, pathway, panel, or solution). The reason is that items,
+stimuli, and item sets are selection units, but they do not constitute
+independent test forms by themselves; they are selected in specific
+modules/pathways/a panel.</p>
+<ul>
+<li>Whether an item (or stimulus) “must be selected” is therefore
+meaningful only after specifying where it must be selected—e.g., in a
+particular module, somewhere within a pathway, anywhere in the panel, or
+across panels.</li>
+<li>Item-set exclusion requirements must be enforced at the
+pathway-level to ensure that no examinee can see enemy item pairs in a
+pathway.</li>
+<li>Item-set conditional inclusion requirements must be enforced at the
+module-level to ensure that items linked to a selected stimulus are
+administered in the same module.</li>
+<li>Item reusage requirements must be enforced at the panel-level
+(either strict item uniqueness within the entire panel or item reuse
+allowed within stage, but not within pathway) or the solution-level (the
+minimum or/and maximum number of times an item is selected across
+multiple panels.)</li>
+</ul>
+<p>In other words, low-level requirements require an explicit
+enforcement scope to determine which subset of decision variables is
+constrained. In contrast, for requirements defined at the module,
+pathway, panel, or solution levels, the enforcement level is typically
+the same as the defined level.</p>
+</div>
+<div id="step-4-translate-specifications-into-an-optimization-model" class="section level3">
+<h3>Step 4: Translate specifications into an optimization model</h3>
+<p>This step converts specifications into a MILP model.</p>
+<div id="objectives" class="section level4">
+<h4>Objectives</h4>
+<p>Objective terms are created using <code>objective_term()</code> and
+compiled into a <code>compiled_objective</code> object.</p>
+<p>Available objective strategies:</p>
+<ul>
+<li><code>single_obj</code>: minimize or maximize a single
+objective.</li>
+<li><code>weighted_obj()</code>: minimize or maximize the weighted sum
+of multiple objectives.</li>
+<li><code>maximin_obj()</code>: maximize a common minimum value across
+multiple objectives,, optionally applying a fixed penalty to any amount
+that exceeds this bound.</li>
+<li><code>capped_maximin_obj()</code>: maximize a common minimum value
+across multiple objectives, penalized by the tolerance for any
+overflow.</li>
+<li><code>minimax_obj()</code>: minimize a common maximum deviation from
+multiple goals.</li>
+<li><code>goal_programming_obj()</code>: minimize the (weighted or
+unweighted) sum of deviations from multiple goals.</li>
+</ul>
+</div>
+<div id="constraints" class="section level4">
+<h4>Constraints</h4>
+<p>Constraints are created as <code>mstATA_constraint</code>
+objects.</p>
+<p>Structural constraints</p>
+<ul>
+<li><p><code>mst_structure_con()</code>: a higher-level wrapper that
+jointly constructs module/pathway length constraints
+<code>test_itemcount_con()</code> and routing decision point constraints
+<code>test_rdp_con()</code>.</p></li>
+<li><p><code>dvlink_item_solution()</code>: an internal function (not
+intended for direct user calls) invoked by
+<code>multipanel_spec()</code> to define solution-level item indicator
+variables and generate constraints for item exposure control across
+multiple panels.</p></li>
+</ul>
+<p>Item-level constraints:</p>
+<ul>
+<li><code>itemcat_con()</code>: constrain an item must or must not be
+selected.</li>
+<li><code>itemquant_con()</code>: constrain quantitative attribute for
+an item to be selected.</li>
+</ul>
+<p>Stimulus-level constraints:</p>
+<ul>
+<li><code>stimcat_con()</code>: constrain a stimulus must or must not be
+selected.</li>
+<li><code>stimquant_con()</code>: constrain quantitative attribute for a
+stimulus to be selected.</li>
+</ul>
+<p>Itemset-level constraints:</p>
+<ul>
+<li><code>enemyitem_exclu_con()</code>: exclude the enemy item pair
+appearing in the same pathway.</li>
+<li><code>enemystim_exclu_con()</code>: exclude the enemy stimulus pair
+appearing in the same pathway.</li>
+<li><code>stim_itemcount_con()</code>: constrain the min/exact/max
+number of items selected conditional on the selection of a
+stimulus.</li>
+<li><code>stim_itemcat_con()</code>: constrain the min/exact/max number
+of items selected from category c conditional on the selection of a
+stimulus.</li>
+<li><code>stim_itemquant_con()</code>: constrain the min/exact/max
+values for the sum of item quantitative attribute values within a
+selected stimulus.</li>
+</ul>
+<p>Module-/Pathway-level constraints:</p>
+<ul>
+<li><code>test_itemcat_con()</code>,
+<code>test_itemcat_range_con()</code>: constrain the min/equal/max/range
+number of items from specific categories in a module or pathway.</li>
+<li><code>test_itemquant_con()</code>,
+<code>test_itemquant_range_con()</code>: constrain the
+min/equal/max/range for the sum of the item quantitative attribute in a
+module or pathway.</li>
+<li><code>test_stimcount_con()</code>: constrain the min/equal/max
+number of stimuli in a module or a pathway.</li>
+<li><code>test_stimcat_con()</code>: constrain the min/equal/max number
+of stimuli from specific categories in a module or pathway.</li>
+<li><code>test_stimquant_con()</code>: constrain the min/equal/max for
+the sum of the stimulus quantitative attribute in a module or
+pathway.</li>
+</ul>
+<p>Panel-level constraints:</p>
+<ul>
+<li><code>panel_itemreuse_con()</code>: constrain item exposure within a
+panel.</li>
+<li><code>panel_itemcat_con()</code>: constrain the min/equal/max number
+of items from specific categories within a panel.</li>
+<li><code>panel_stimcat_con()</code>: constrain the min/equal/max number
+of stimuli from specific categories within a panel.</li>
+</ul>
+<p>Solution-level constraints:</p>
+<ul>
+<li><code>solution_itemcount_con()</code>: constraint the min/equal/max
+number of unique items across multiple panels.</li>
+<li><code>solution_itemcat_con()</code>: constrain the min/equal/max
+number of unique items from specific categories across multiple
+panels.</li>
+<li><code>solution_stimcount_con()</code>: constraint the min/equal/max
+number of unique stimuli across multiple panels.</li>
+<li><code>solution_stimcat_con()</code>: constrain the min/equal/max
+number of unique stimuli from specific categories across multiple
+panels.</li>
+</ul>
+</div>
+</div>
+<div id="step-5-execute-assembly-via-a-solver" class="section level3">
+<h3>Step 5: Execute Assembly via a Solver</h3>
+<p>After objectives and constraints are compiled, create
+<code>mstATA_model</code> via <code>onepanel_spec()</code> or
+<code>multipanel_spec()</code>.</p>
+<ul>
+<li><code>solve_model()</code>: supported solvers include
+<code>gurobi</code>, <code>HiGHS</code>, <code>Symphony</code>,
+<code>GLPK</code> and <code>lpsolve</code>.</li>
+<li><code>assembled_panel()</code>: organizes the solver results by
+panel, module, and pathway.</li>
+</ul>
+</div>
+<div id="step-6-diagnosing-infeasibility" class="section level3">
+<h3>Step 6: Diagnosing Infeasibility</h3>
+<ul>
+<li><code>check_singblock_feasibility()</code>: tests the feasibility of
+an individual specification by solving a reduced model that contains the
+core constraints plus exactly one additional constraint block.</li>
+<li><code>check_comblock_feasibility()</code>: tests the feasibility of
+multiple specifications by solving a reduced model that contains the
+core constraints plus user-specified combination of constraint
+blocks.</li>
+</ul>
+<p>Recover feasibility for an infeasible <code>mstATA_model</code></p>
+<ul>
+<li><code>solve_with_slack()</code>: attempt to recover feasibility for
+an infeasible <code>mstATA_model</code>.</li>
+</ul>
+</div>
+<div id="step-7-evaluate-assembled-panels" class="section level3">
+<h3>Step 7: Evaluate assembled panels</h3>
+<p>After assembly, panels can be evaluated from multiple
+perspectives.</p>
+<p>Content and structural reports:</p>
+<ul>
+<li><code>report_test_itemcat()</code>: summarizes the number of
+selected items belonging to specified categorical attribute levels in
+specific modules/pathways.</li>
+<li><code>report_test_itemquant()</code>: summarizes quantitative item
+attributes (e.g., test information, time, difficulty) in specific
+modules/pathways.</li>
+<li><code>report_test_tcc()</code>: computes and reports test
+characteristic curves (TCC) aggregated at the module or pathway level
+for assembled MST panels.</li>
+<li><code>report_test_tif()</code>: computes and reports test
+information functions (TIF) aggregated at the module or pathway level
+for assembled MST panels.</li>
+</ul>
+<p>Psychometric evaluation:</p>
+<ul>
+<li><code>plot_panel_tcc()</code>: plots test characteristic curves
+aggregated at the module or pathway level, supports both single-panel
+and multi-panel visualization.</li>
+<li><code>plot_panel_tif()</code>: plots test information functions
+aggregated at the module or pathway level, supports both single-panel
+and multi-panel visualization.</li>
+</ul>
+<p>Precision and classification:</p>
+<ul>
+<li><code>analytic_mst_precision()</code>: computes conditional bias and
+conditional standard error of measurement for MST panels using a
+recursion-based evaluation method (Lim, 2000).</li>
+<li><code>analytic_mst_classification()</code>: computes classification
+evaluation criterion using Rudner’s method (2000, 2005).</li>
+</ul>
+<p>Supporting utilities:</p>
+<ul>
+<li><code>expected_score()</code>: computes the expected total score
+implied by item category probability curves.</li>
+<li><code>inv_tcc_from_icc()</code>: computes ITCC estimates from test
+characteristic curve.</li>
+<li><code>module_score_dist()</code>: computes the conditional
+distribution of total module scores given a/multiple ability
+values.</li>
+<li><code>joint_module_score_dist()</code>: computes the joint
+(cumulative) score distribution after administering a next-stage module,
+conditional on routing into a branch defined by a set of reachable
+previous scores.</li>
+</ul>
+</div>
+</div>
+<div id="summary" class="section level2">
+<h2>Summary</h2>
+<p><code>mstATA</code> provides a unified framework for hierarchical
+constraint modeling, multi-strategy objective optimization, multi-panel
+MST assembly, and psychometric evaluation.</p>
+<ul>
+<li><p>Each specification corresponds to a clearly named
+function</p></li>
+<li><p>Each function produces explicit linear constraints</p></li>
+<li><p>All constraints can be inspected prior to solving</p></li>
+<li><p>Infeasibility diagnostics are available</p></li>
+<li><p>Bonus: An item–module eligibility set can be specified to filter
+the active binary decision variables. In addition, explicitly providing
+objective values can further improve the computational efficiency of the
+mixed-integer linear programming formulation.</p></li>
+</ul>
+<p><strong>References</strong></p>
+<p>van der Linden, W. J. (2005). <em>Linear models for optimal test
+design.</em> Springer. <a href="https://doi.org/10.1007/0-387-29054-0" class="uri">https://doi.org/10.1007/0-387-29054-0</a></p>
+<p>van der Linden, W. J. (2000). <em>Optimal assembly of tests with item
+sets.</em> Applied Psychological Measurement, 24(3), 225–240. <a href="https://doi.org/10.1177/01466210022031697" class="uri">https://doi.org/10.1177/01466210022031697</a></p>
+<p>van der Linden, W. J., &amp; Boekkooi-Timminga, E. (1989). <em>A
+maximin model for test design with practical constraints.</em>
+Psychometrika, 54(2), 237–247. <a href="https://doi.org/10.1007/BF02294518" class="uri">https://doi.org/10.1007/BF02294518</a></p>
+<p>Lim, H., Davey, T., &amp; Wells, C. S. (2020).<br />
+<em>A recursion-based analytical approach to evaluate the performance of
+MST.</em><br />
+Journal of Educational Measurement, 58(2), 154–178.<br />
+<a href="https://doi.org/10.1111/jedm.12276" class="uri">https://doi.org/10.1111/jedm.12276</a></p>
+<p>Rudner, L. M. (2000). <em>Computing the expected proportions of
+misclassified examinees.</em> Practical Assessment, Research, and
+Evaluation, 7(1). <a href="https://doi.org/10.7275/an9m-2035" class="uri">https://doi.org/10.7275/an9m-2035</a></p>
+<p>Rudner, L. M. (2005). <em>Expected classification accuracy.</em>
+Practical Assessment, Research, and Evaluation, 10(1). <a href="https://doi.org/10.7275/56a5-6b14" class="uri">https://doi.org/10.7275/56a5-6b14</a></p>
+</div>
+
+
+
+<!-- code folding -->
+
+
+<!-- dynamically load mathjax for compatibility with self-contained -->
+<script>
+  (function () {
+    var script = document.createElement("script");
+    script.type = "text/javascript";
+    script.src  = "https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML";
+    document.getElementsByTagName("head")[0].appendChild(script);
+  })();
+</script>
+
+</body>
+</html>

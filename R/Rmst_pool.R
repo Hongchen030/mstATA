@@ -1,0 +1,36 @@
+#' @title Item pool from Rmst for examples
+#'
+#' @description
+#'
+#' A data frame containing 400 3PL items, 20 GPCM items, and 20 GRM items.
+#' This item pool is adapted from the example
+#' item pool used to demonstrate multistage test assembly in the
+#' \pkg{Rmst} package.
+#'
+#' @format A data frame with 440 rows and 14 variables:
+#' \describe{
+#'   \item{Item_id}{Unique identifier for each item.}
+#'   \item{model}{IRT model specification for the item (e.g. \code{"3PL"}, \code{"GPCM"}, \code{"GRM"}).}
+#'   \item{a}{Discrimination parameter (\eqn{a}{a}) for the 3PL model.}
+#'   \item{b}{Difficulty parameter (\eqn{b}{b}) for the 3PL model.}
+#'   \item{c}{Guessing parameter (\eqn{c}{c}) for the 3PL model.}
+#'   \item{alpha}{Discrimination parameter (\eqn{\alpha}{alpha}) for GPCM and GRM models.}
+#'   \item{delta1}{First step parameter (\eqn{\delta_1}{delta1}) for the GPCM model.}
+#'   \item{delta2}{Second step parameter (\eqn{\delta_2}{delta2}) for the GPCM model.}
+#'   \item{delta3}{Third step parameter (\eqn{\delta_3}{delta3}) for the GPCM model.}
+#'   \item{beta1}{First threshold parameter (\eqn{\beta_1}{beta1}) for the GRM model.}
+#'   \item{beta2}{Second threshold parameter (\eqn{\beta_2}{beta2}) for the GRM model.}
+#'   \item{content}{Content category classification of the item.}
+#'   \item{time}{Item time.}
+#'   \item{group}{Item group identifier.}
+#' }
+#' @references
+#' Luo, X. (2019). \emph{Rmst: Computerized Adaptive Multistage Testing}.
+#' R package version 0.0.3.
+#' \doi{10.32614/CRAN.package.Rmst}.
+#' \url{https://CRAN.R-project.org/package=Rmst}
+#'
+#' @usage data(Rmst_pool)
+#' @examples
+#' data(Rmst_pool)
+"Rmst_pool"
